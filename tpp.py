@@ -30,6 +30,8 @@ from collections import namedtuple
 from operator import itemgetter
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
+#from config import Config
+import ConfigParser
 
 import shutil
 import sys
@@ -39,14 +41,27 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import email.utils
 
-DEBUG = False
-#DEBUG = True
-#SENDMAIL = True
-SENDMAIL = False
+def ConfigSectionMap(section):
+    dict1 = {}
+    options = Config.options(section)
+    for option in options:
+        try:
+            dict1[option] = Config.get(section, option)
+            if dict1[option] == -1:
+                DebugPrint("skip: %s" % option)
+        except:
+            print("exception on %s!" % option)
+            dict1[option] = None
+    return dict1
 
-DUEDELTA = 'days'
-# how many days before the due date should the task be highlighted as duesoon?
-DUEINTERVAL = 3
+Config = ConfigParser.ConfigParser()
+Config.read("tpp.cfg")
+
+DEBUG = Config.getboolean("tpp", "debug")
+SENDMAIL = Config.getboolean("tpp", "sendmail")
+
+DUEDELTA = ConfigSectionMap("tpp")['duedelta']
+DUEINTERVAL = Config.getint("tpp", "dueinterval")
 
 Flagged = namedtuple('Flagged', ['prio', 'taskdate', 'project', 'task', 'done', 'repeat', 'repeatinterval', 'duedate', 'duesoon', 'overdue'])
 Flaggednew = namedtuple('Flaggednew', ['prio', 'taskdate', 'project', 'task', 'done', 'repeat', 'repeatinterval', 'duedate', 'duesoon', 'overdue'])
@@ -354,9 +369,9 @@ def printOutFile(flaglist, flaglistarchive, tpfile):
 
 def sendMail(flaglist, destination):
 	if SENDMAIL:
-		source = "SOURCEADDRESS"
-		desthome = "DESTHOME"
-		destwork = "DESTWORK"
+		source = ConfigSectionMap("tpp")['sourceemail']
+		desthome = ConfigSectionMap("tpp")['desthomeemail']
+		destwork = ConfigSectionMap("tpp")['destworkemail']
 
 
 		mytxt = '*Tasks for Today*\n\n'
@@ -400,17 +415,15 @@ def sendMail(flaglist, destination):
 					taskstring = taskstring + cut_string[i] + ' '
 				taskstring = taskstring + '@due(' + task.duedate + ')'
 				mytxt = mytxt + taskstring.strip() + '\n'
-
-		#msg = MIMEText(unicode(mytxt))
 		msg = MIMEText(mytxt)
 		if destination == 'HOME':
-			msg['To'] = email.utils.formataddr(('TaskPaper', desthome))
+			msg['To'] = email.utils.formataddr((ConfigSectionMap("tpp")['desthomename'], desthome))
 		elif destination == 'WORK':
-			msg['To'] = email.utils.formataddr(('TaskPaper', destwork))
+			msg['To'] = email.utils.formataddr((ConfigSectionMap("tpp")['destworkname'], destwork))
 		else:
 			print('Error, wrong destination')
 			return -1
-		msg['From'] = email.utils.formataddr(('SENDERNAME', source))
+		msg['From'] = email.utils.formataddr((ConfigSectionMap("tpp")['sourcename'], source))
 		msg['Subject'] = 'Taskpaper daily overview'
 
 		s = smtplib.SMTP('localhost')
