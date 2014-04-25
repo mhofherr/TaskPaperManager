@@ -2,8 +2,26 @@
 # -*- coding: utf-8 -*-
 #
 # TaskPaper Parser
-# based on a script from K. Marchand
+# based on a small script from K. Marchand
 # heavily modified for my own requirements
+#
+# Licencsed under GPLv2
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#
+
 #
 from __future__ import print_function
 
@@ -23,8 +41,8 @@ import email.utils
 
 DEBUG = False
 #DEBUG = True
-SENDMAIL = True
-#SENDMAIL = False
+#SENDMAIL = True
+SENDMAIL = False
 
 DUEDELTA = 'days'
 # how many days before the due date should the task be highlighted as duesoon?
@@ -98,7 +116,7 @@ def parseInput(tpfile):
 	        print ('IN:' + str(task.prio) + ' | ' + str(task.taskdate ) + ' | ' +  str(task.project) + ' | ' + str(task.task) + ' | ' + str(task.done) + ' | ' + str(task.repeat) + ' | ' + str(task.repeatinterval) + ' | ' + str(task.duesoon) + ' | ' + str(task.overdue))
 	return flaglist
 
-# overdue und duesoon tags enfernen
+# remove overdue and duesoon tags
 def removeTags(flaglist):
 	flaglistnew = []
 	for task in flaglist:
@@ -124,7 +142,7 @@ def removeTags(flaglist):
 					Flagged(tasknew.prio, tasknew.taskdate, tasknew.project, tasknew.task, tasknew.done, tasknew.repeat, tasknew.repeatinterval, tasknew.duedate, tasknew.duesoon, tasknew.overdue))
 	return flaglist
 
-# overdue und duesoon tags setzen
+# set overdue and duesoon tags
 def setTags(flaglist):
 	flaglistnew = []
 	for task in flaglist:
@@ -145,7 +163,7 @@ def setTags(flaglist):
 					Flagged(tasknew.prio, tasknew.taskdate, tasknew.project, tasknew.task, tasknew.done, tasknew.repeat, tasknew.repeatinterval, tasknew.duedate, tasknew.duesoon, tasknew.overdue))
 	return flaglist
 
-# done durchgehen und ins Archiv umhaengen
+# check @done and move to archive file
 def archiveDone(flaglist):
 	Flaggedarchive = namedtuple('Flaggedarchive', ['prio', 'taskdate', 'project', 'task', 'done', 'repeat', 'repeatinterval', 'duedate', 'duesoon', 'overdue'])
 	flaglistnew = []
@@ -168,16 +186,13 @@ def archiveDone(flaglist):
 		else:
 			flaglistnew.append(
 				Flaggednew(task.prio, task.taskdate, task.project, task.task, task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
-
-
-	# move items from flaglistnew back to flaglist
 	flaglist = []
 	for tasknew in flaglistnew:
 		flaglist.append(
 					Flagged(tasknew.prio, tasknew.taskdate, tasknew.project, tasknew.task, tasknew.done, tasknew.repeat, tasknew.repeatinterval, tasknew.duedate, tasknew.duesoon, tasknew.overdue))
 	return flaglist, flaglistarchive
 
-# check repeat statements; instanciate new tasks if startdate + repeat interval = today
+# check repeat statements; instantiate new tasks if startdate + repeat interval = today
 def setRepeat(flaglist):
 	flaglistnew = []
 
@@ -192,12 +207,12 @@ def setRepeat(flaglist):
 			if 'w' in typeofinterval:
 				delta = 'weeks'
 			if 'm' in typeofinterval:
-				delta = 'month' 
+				delta = 'month'
 			if delta == 'days' or delta == 'weeks':
 				newtaskdate = datetime.date(parser.parse(task.taskdate)) + timedelta(**{delta: intnum})
 			if delta == 'month':
 				newtaskdate = datetime.date(parser.parse(task.taskdate)) + relativedelta(months=intnum)
-			# instanciate anything which is older or equal then today 
+			# instantiate anything which is older or equal than today
 			if newtaskdate <= today_date:
 				if '@home' in task.task:
 					projecttag = 'home'
@@ -339,11 +354,11 @@ def printOutFile(flaglist, flaglistarchive, tpfile):
 
 def sendMail(flaglist, destination):
 	if SENDMAIL:
-		source = "matthias@hofherr.me"
-		desthome = "matthias@hofherr.me"
-		destwork = "matthias@atsec.com"
+		source = "SOURCEADDRESS"
+		desthome = "DESTHOME"
+		destwork = "DESTWORK"
 
-		
+
 		mytxt = '*Tasks for Today*\n\n'
 		mytxt = mytxt + "*Overdue tasks*\n\n"
 		# Overdue
@@ -394,8 +409,8 @@ def sendMail(flaglist, destination):
 			msg['To'] = email.utils.formataddr(('TaskPaper', destwork))
 		else:
 			print('Error, wrong destination')
-			return -1			
-		msg['From'] = email.utils.formataddr(('Matthias Hofherr', source))
+			return -1
+		msg['From'] = email.utils.formataddr(('SENDERNAME', source))
 		msg['Subject'] = 'Taskpaper daily overview'
 
 		s = smtplib.SMTP('localhost')
@@ -416,6 +431,6 @@ def main():
 	flaglist = sortList(flaglist)
 	printOutFile(flaglist, flaglistarchive, tpfile)
 	sendMail(flaglist, 'HOME')
-	#sendMail(flaglist, 'WORK')
+	sendMail(flaglist, 'WORK')
 
 main ()
