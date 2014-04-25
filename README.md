@@ -10,3 +10,18 @@ It provides the following features:
 * send daily status mails for @high, @medium, @duesoon and @overdue tasks
 * flag tasks with due-dates as @duesoon or @overdue (helpful for hightlighting with modified TaskPaper Theme)
 * Sort the list (primary sort criterium: @prio, secondary: @start)
+
+The variable parameters are configured via a separate config file (tpp.cfg):
+
+    [tpp]
+    debug: True
+    sendmail: False
+    duedelta: days
+    dueinterval: 3
+    sourceemail: SENDERADDRESS
+    destworkemail: DESTADDRESS(WORK)
+    desthomeemail: DESTADDRESS(HOME)
+    sourcename: SENDERNAME
+    destworkname: DESTNAME(WORK)
+    desthomename: DESTNAME(HOME)
+
