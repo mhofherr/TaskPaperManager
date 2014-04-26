@@ -25,3 +25,4 @@ The variable parameters are configured via a separate config file (tpp.cfg):
     destworkname: DESTNAME(WORK)
     desthomename: DESTNAME(HOME)
 
+The TaskPaper theme highlights @overdue and @prio(high) in red and bold. @Duesoon is highlighted in dark orange.
