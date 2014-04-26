@@ -30,7 +30,6 @@ from collections import namedtuple
 from operator import itemgetter
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
-#from config import Config
 import ConfigParser
 
 import shutil
