@@ -403,7 +403,7 @@ def sendMail(flaglist, destination):
 		mytxt = mytxt + "\n\n*High and Medium tasks*\n\n"
 		# All other high and medium prio tasks
 		for task in flaglist:
-			if task.project == 'home' and ( task.prio == 1 or task.prio == 2 ) and task.taskdate <= str(today_date) and ( task.overdue != 'true' or task.duesoon != 'true' ) and task.done == 'false':
+			if task.project == destination and ( task.prio == 1 or task.prio == 2 ) and task.taskdate <= str(today_date) and ( task.overdue != 'true' or task.duesoon != 'true' ) and task.done == 'false':
 				taskstring = ''
 				cut_string = task.task.split(' ')
 				for i in range(0, len(cut_string)):
@@ -412,12 +412,13 @@ def sendMail(flaglist, destination):
 					if '@prio' in cut_string[i]:
 						continue
 					taskstring = taskstring + cut_string[i] + ' '
-				taskstring = taskstring + '@due(' + task.duedate + ')'
+				if task.duedate != '2999-12-31':
+					taskstring = taskstring + '@due(' + task.duedate + ')'
 				mytxt = mytxt + taskstring.strip() + '\n'
 		msg = MIMEText(mytxt)
-		if destination == 'HOME':
+		if destination == 'home':
 			msg['To'] = email.utils.formataddr((ConfigSectionMap("tpp")['desthomename'], desthome))
-		elif destination == 'WORK':
+		elif destination == 'work':
 			msg['To'] = email.utils.formataddr((ConfigSectionMap("tpp")['destworkname'], destwork))
 		else:
 			print('Error, wrong destination')
@@ -427,9 +428,9 @@ def sendMail(flaglist, destination):
 
 		s = smtplib.SMTP('localhost')
 
-		if destination == 'HOME':
+		if destination == 'home':
 			s.sendmail(source, desthome, msg.as_string())
-		elif destination == 'WORK':
+		elif destination == 'work':
 			s.sendmail(source, destwork, msg.as_string())
 		s.quit()
 
@@ -442,7 +443,7 @@ def main():
 	flaglist = setRepeat(flaglist)
 	flaglist = sortList(flaglist)
 	printOutFile(flaglist, flaglistarchive, tpfile)
-	sendMail(flaglist, 'HOME')
-	sendMail(flaglist, 'WORK')
+	sendMail(flaglist, 'home')
+	sendMail(flaglist, 'work')
 
 main ()
