@@ -2,27 +2,11 @@
 # -*- coding: utf-8 -*-
 #
 # TaskPaper Parser
-# based on a small script from K. Marchand
-# heavily modified for my own requirements
+# originally based on a small script for printing a task summary from K. Marchand
+# now completely re-written and modified for my own requirements
 #
-# Licencsed under GPLv2
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-#
+# License: GPL v3 (for details see LICENSE file)
 
-#
 from __future__ import print_function
 
 from datetime import datetime, timedelta
@@ -53,7 +37,9 @@ def ConfigSectionMap(section):
             dict1[option] = None
     return dict1
 
+# tpp.cfg config file required - for details see README.md
 Config = ConfigParser.ConfigParser()
+# set correct path if not in local directory
 Config.read("tpp.cfg")
 
 DEBUG = Config.getboolean("tpp", "debug")
@@ -62,12 +48,28 @@ SENDMAIL = Config.getboolean("tpp", "sendmail")
 DUEDELTA = ConfigSectionMap("tpp")['duedelta']
 DUEINTERVAL = Config.getint("tpp", "dueinterval")
 
-Flagged = namedtuple('Flagged', ['prio', 'taskdate', 'project', 'task', 'done', 'repeat', 'repeatinterval', 'duedate', 'duesoon', 'overdue'])
-Flaggednew = namedtuple('Flaggednew', ['prio', 'taskdate', 'project', 'task', 'done', 'repeat', 'repeatinterval', 'duedate', 'duesoon', 'overdue'])
-Flaggedarchive = namedtuple('Flaggedarchive', ['prio', 'taskdate', 'project', 'task', 'done', 'repeat', 'repeatinterval', 'duedate', 'duesoon', 'overdue'])
+# Data structure
+#	prio: priority of the task - high, medium or low; mapped to 1, 2 or 3
+#	startdate: when will the task be visible - format: yyyy-mm-dd
+#	project: with which project is the task associated
+#	taskline: the actual task line
+#	done: is it done?; based on @done tag; boolean
+#	repeat: only for tasks in the project"repeat"; boolean
+#	repeatinterval: the repeat inteval is given by a number followed by an interval type; e.g.
+#		2w = 2 weeks
+#		3d = 3 days
+#		1m = 1 month
+#	duedate: same format as startdate
+#	duesoon: boolean; true if today is duedate minus DUEDELTA in DUEINTERVAL (constants) or less
+#	overdue: boolean; true if today is after duedate
+#
 
-today_date = datetime.date(datetime.now())
-daybefore = today_date - timedelta(days=1)
+Flagged = namedtuple('Flagged', ['prio', 'startdate', 'project', 'taskline', 'done', 'repeat', 'repeatinterval', 'duedate', 'duesoon', 'overdue'])
+Flaggednew = namedtuple('Flaggednew', ['prio', 'startdate', 'project', 'taskline', 'done', 'repeat', 'repeatinterval', 'duedate', 'duesoon', 'overdue'])
+Flaggedarchive = namedtuple('Flaggedarchive', ['prio', 'startdate', 'project', 'taskline', 'done', 'repeat', 'repeatinterval', 'duedate', 'duesoon', 'overdue'])
+
+TODAY = datetime.date(datetime.now())
+DAYBEFORE = TODAY - timedelta(days=1)
 
 
 def parseInput(tpfile):
@@ -81,12 +83,12 @@ def parseInput(tpfile):
 
 	for line in tplines:
 		try:
-			done = 'false'
-			repeat = '-'
+			done = False
+			repeat = False
 			repeatinterval = '-'
 			duedate = '2999-12-31'
-			duesoon = 'false'
-			overdue = 'false'
+			duesoon = False
+			overdue = False
 			# remove empty lines and task-lines without any content
 			if not line.strip():
 				continue
@@ -96,17 +98,17 @@ def parseInput(tpfile):
 				project = line.strip()[:-1]
 				continue
 			if '@done' in line:
-				done = 'true'
+				done = True
 			if '@repeat' in line:
-				repeat = 'true'
+				repeat = True
 				repeatinterval = re.search(r'\@repeat\((.*?)\)', line).group(1)
 			if '@due' in line:
 				duedate = re.search(r'\@due\((.*?)\)', line).group(1)
 				duealert = datetime.date(parser.parse(duedate)) - timedelta(**{ DUEDELTA: DUEINTERVAL})
-				if duealert <= today_date <= datetime.date(parser.parse(duedate)):
-					duesoon = 'true'
-				if datetime.date(parser.parse(duedate)) < today_date:
-					overdue = 'true'
+				if duealert <= TODAY <= datetime.date(parser.parse(duedate)):
+					duesoon = True
+				if datetime.date(parser.parse(duedate)) < TODAY:
+					overdue = True
 			if '@start' in line and '@prio' in line:
 				priotag = re.search(r'\@prio\((.*?)\)', line).group(1)
 				if priotag == 'high':
@@ -116,7 +118,6 @@ def parseInput(tpfile):
 				elif priotag == 'low':
 					priotag = 3
 				starttag = re.search(r'\@start\((.*?)\)', line).group(1)
-				taskdate = datetime.date(parser.parse(starttag))
 				flaglist.append(
 					Flagged(priotag, starttag, project, line.strip(), done, repeat, repeatinterval, duedate, duesoon, overdue))
 			else:
@@ -127,16 +128,16 @@ def parseInput(tpfile):
 	f.close()
 	if DEBUG:
 	    for task in flaglist:
-	        print ('IN:' + str(task.prio) + ' | ' + str(task.taskdate ) + ' | ' +  str(task.project) + ' | ' + str(task.task) + ' | ' + str(task.done) + ' | ' + str(task.repeat) + ' | ' + str(task.repeatinterval) + ' | ' + str(task.duesoon) + ' | ' + str(task.overdue))
+	        print ('IN:' + str(task.prio) + ' | ' + str(task.startdate ) + ' | ' +  str(task.project) + ' | ' + str(task.taskline) + ' | ' + str(task.done) + ' | ' + str(task.repeat) + ' | ' + str(task.repeatinterval) + ' | ' + str(task.duesoon) + ' | ' + str(task.overdue))
 	return flaglist
 
 # remove overdue and duesoon tags
 def removeTags(flaglist):
 	flaglistnew = []
 	for task in flaglist:
-		if '@overdue' in task.task or '@duesoon' in task.task:
+		if '@overdue' in task.taskline or '@duesoon' in task.taskline:
 			taskstring = ''
-			cut_string = task.task.split(' ')
+			cut_string = task.taskline.split(' ')
 			for i in range(0, len(cut_string)):
 				if '@overdue' in cut_string[i]:
 					continue
@@ -144,66 +145,65 @@ def removeTags(flaglist):
 					continue
 				taskstring = taskstring + cut_string[i] + ' '
 			flaglistnew.append(
-				Flaggednew(task.prio, task.taskdate, task.project, taskstring, task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
+				Flaggednew(task.prio, task.startdate, task.project, taskstring, task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
 		else:
 			flaglistnew.append(
-				Flaggednew(task.prio, task.taskdate, task.project, task.task, task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
+				Flaggednew(task.prio, task.startdate, task.project, task.taskline, task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
 
 	# move items from flaglistnew back to flaglist
 	flaglist = []
 	for tasknew in flaglistnew:
 		flaglist.append(
-					Flagged(tasknew.prio, tasknew.taskdate, tasknew.project, tasknew.task, tasknew.done, tasknew.repeat, tasknew.repeatinterval, tasknew.duedate, tasknew.duesoon, tasknew.overdue))
+					Flagged(tasknew.prio, tasknew.startdate, tasknew.project, tasknew.taskline, tasknew.done, tasknew.repeat, tasknew.repeatinterval, tasknew.duedate, tasknew.duesoon, tasknew.overdue))
 	return flaglist
 
 # set overdue and duesoon tags
 def setTags(flaglist):
 	flaglistnew = []
 	for task in flaglist:
-		if task.overdue == 'true':
+		if task.overdue:
 			flaglistnew.append(
-				Flaggednew(task.prio, task.taskdate, task.project, task.task + ' @overdue', task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
-		elif  task.duesoon == 'true':
+				Flaggednew(task.prio, task.startdate, task.project, task.taskline + ' @overdue', task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
+		elif  task.duesoon:
 			flaglistnew.append(
-				Flaggednew(task.prio, task.taskdate, task.project, task.task + ' @duesoon', task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
+				Flaggednew(task.prio, task.startdate, task.project, task.taskline + ' @duesoon', task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
 		else:
 			flaglistnew.append(
-				Flaggednew(task.prio, task.taskdate, task.project, task.task, task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
+				Flaggednew(task.prio, task.startdate, task.project, task.taskline, task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
 
 	# move items from flaglistnew back to flaglist
 	flaglist = []
 	for tasknew in flaglistnew:
 		flaglist.append(
-					Flagged(tasknew.prio, tasknew.taskdate, tasknew.project, tasknew.task, tasknew.done, tasknew.repeat, tasknew.repeatinterval, tasknew.duedate, tasknew.duesoon, tasknew.overdue))
+					Flagged(tasknew.prio, tasknew.startdate, tasknew.project, tasknew.taskline, tasknew.done, tasknew.repeat, tasknew.repeatinterval, tasknew.duedate, tasknew.duesoon, tasknew.overdue))
 	return flaglist
 
 # check @done and move to archive file
 def archiveDone(flaglist):
-	Flaggedarchive = namedtuple('Flaggedarchive', ['prio', 'taskdate', 'project', 'task', 'done', 'repeat', 'repeatinterval', 'duedate', 'duesoon', 'overdue'])
 	flaglistnew = []
 	flaglistarchive = []
 
 	for task in flaglist:
-		if task.done == 'true':
+		if task.done:
 			if DEBUG:
-				print('DONELOOP:' + str(task.prio) + ' | ' + str(task.taskdate )+ ' | ' +  str(task.project) + ' | ' + str(task.task) + ' | ' + str(task.done) + ' | ' + str(task.repeat) + ' | ' + str(task.repeatinterval) + ' | ' + str(task.duedate) + ' | ' + str(task.duesoon) + ' | ' + str(task.overdue))
+				print('DONELOOP:' + str(task.prio) + ' | ' + str(task.startdate )+ ' | ' +  str(task.project) + ' | ' + str(task.taskline) + ' | ' + str(task.done) + ' | ' + str(task.repeat) + ' | ' + str(task.repeatinterval) + ' | ' + str(task.duedate) + ' | ' + str(task.duesoon) + ' | ' + str(task.overdue))
 
 			taskstring = ''
-			cut_string = task.task.split(' ')
+			cut_string = task.taskline.split(' ')
 			for i in range(0, len(cut_string)):
 				if '@done' in cut_string[i]:
 					continue
 				taskstring = taskstring + cut_string[i] + ' '
-			newtask = taskstring + ' @project(' + task.project + ') @done(' + str(daybefore) + ')'
+			newtask = taskstring + ' @project(' + task.project + ') @done(' + str(DAYBEFORE) + ')'
 			flaglistarchive.append(
-				Flaggedarchive(task.prio, task.taskdate, 'Archive', newtask, task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
+				Flaggedarchive(task.prio, task.startdate, 'Archive', newtask, task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
 		else:
 			flaglistnew.append(
-				Flaggednew(task.prio, task.taskdate, task.project, task.task, task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
+				Flaggednew(task.prio, task.startdate, task.project, task.taskline, task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
 	flaglist = []
 	for tasknew in flaglistnew:
 		flaglist.append(
-					Flagged(tasknew.prio, tasknew.taskdate, tasknew.project, tasknew.task, tasknew.done, tasknew.repeat, tasknew.repeatinterval, tasknew.duedate, tasknew.duesoon, tasknew.overdue))
+					Flagged(tasknew.prio, tasknew.startdate, tasknew.project, tasknew.taskline, tasknew.done, tasknew.repeat, tasknew.repeatinterval, tasknew.duedate, tasknew.duesoon, tasknew.overdue))
 	return flaglist, flaglistarchive
 
 # check repeat statements; instantiate new tasks if startdate + repeat interval = today
@@ -211,7 +211,7 @@ def setRepeat(flaglist):
 	flaglistnew = []
 
 	for task in flaglist:
-		if task.project == 'Repeat' and task.repeat == 'true':
+		if task.project == 'Repeat' and task.repeat:
 			delta = ''
 			intervalnumber = task.repeatinterval[0]
 			typeofinterval = task.repeatinterval[1]
@@ -223,18 +223,18 @@ def setRepeat(flaglist):
 			if 'm' in typeofinterval:
 				delta = 'month'
 			if delta == 'days' or delta == 'weeks':
-				newtaskdate = datetime.date(parser.parse(task.taskdate)) + timedelta(**{delta: intnum})
+				newstartdate = datetime.date(parser.parse(task.startdate)) + timedelta(**{delta: intnum})
 			if delta == 'month':
-				newtaskdate = datetime.date(parser.parse(task.taskdate)) + relativedelta(months=intnum)
+				newstartdate = datetime.date(parser.parse(task.startdate)) + relativedelta(months=intnum)
 			# instantiate anything which is older or equal than today
-			if newtaskdate <= today_date:
-				if '@home' in task.task:
+			if newstartdate <= TODAY:
+				if '@home' in task.taskline:
 					projecttag = 'home'
-				if '@work' in task.task:
+				if '@work' in task.taskline:
 					projecttag = 'work'
 				# get the relevant information from the task description
 				taskstring = ''
-				cut_string = task.task.split(' ')
+				cut_string = task.taskline.split(' ')
 				for i in range(0, len(cut_string)):
 					if '@repeat' in cut_string[i]:
 						continue
@@ -245,45 +245,45 @@ def setRepeat(flaglist):
 					if '@start' in cut_string[i]:
 						continue
 					taskstring = taskstring + cut_string[i] + ' '
-				taskstring = taskstring + ' ' + '@start(' + str(newtaskdate) + ')'
-				done = 'false'
-				repeat = '-'
+				taskstring = taskstring + ' ' + '@start(' + str(newstartdate) + ')'
+				done = False
+				repeat = False
 				repeatinterval = '-'
 				# create new instance of repeat task
 				flaglistnew.append(
-						Flaggednew(task.prio, str(newtaskdate), projecttag, taskstring, done, repeat, repeatinterval, task.duedate, task.duesoon, task.overdue))
-				# remove old start-date in taskstring; add newtaskdate as start date instead
+						Flaggednew(task.prio, str(newstartdate), projecttag, taskstring, done, repeat, repeatinterval, task.duedate, task.duesoon, task.overdue))
+				# remove old start-date in taskstring; add newstartdate as start date instead
 				taskstring = ''
-				cut_string = task.task.split(' ')
+				cut_string = task.taskline.split(' ')
 				for i in range(0, len(cut_string)):
 					if '@start' in cut_string[i]:
 						continue
 					taskstring = taskstring + cut_string[i] + ' '
-				taskstring = taskstring + ' ' + '@start(' + str(newtaskdate) + ')'
+				taskstring = taskstring + ' ' + '@start(' + str(newstartdate) + ')'
 				# prepare modified entry for repeat-task
 				flaglistnew.append(
-					Flaggednew(task.prio, task.taskdate, task.project, taskstring, task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
+					Flaggednew(task.prio, task.startdate, task.project, taskstring, task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
 			else:
 				# write back repeat tasks with non-matching date
 				flaglistnew.append(
-					Flaggednew(task.prio, task.taskdate, task.project, task.task, task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
+					Flaggednew(task.prio, task.startdate, task.project, task.taskline, task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
 		else:
 			flaglistnew.append(
-				Flaggednew(task.prio, task.taskdate, task.project, task.task, task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
+				Flaggednew(task.prio, task.startdate, task.project, task.taskline, task.done, task.repeat, task.repeatinterval, task.duedate, task.duesoon, task.overdue))
 	# move items from flaglistnew back to flaglist
 	flaglist = []
 	for tasknew in flaglistnew:
 		flaglist.append(
-					Flagged(tasknew.prio, tasknew.taskdate, tasknew.project, tasknew.task, tasknew.done, tasknew.repeat, tasknew.repeatinterval, tasknew.duedate, tasknew.duesoon, tasknew.overdue))
+					Flagged(tasknew.prio, tasknew.startdate, tasknew.project, tasknew.taskline, tasknew.done, tasknew.repeat, tasknew.repeatinterval, tasknew.duedate, tasknew.duesoon, tasknew.overdue))
 
 	if DEBUG:
 	    for task in flaglist:
-	        print ('OUT:' + str(task.prio) + ' | ' + str(task.taskdate )+ ' | ' +  str(task.project) + ' | ' + str(task.task) + ' | ' + str(task.done) + ' | ' + str(task.repeat) + ' | ' + str(task.repeatinterval))
+	        print ('OUT:' + str(task.prio) + ' | ' + str(task.startdate )+ ' | ' +  str(task.project) + ' | ' + str(task.taskline) + ' | ' + str(task.done) + ' | ' + str(task.repeat) + ' | ' + str(task.repeatinterval))
 	return flaglist
 
 def sortList(flaglist):
 	# sort in following order: project (asc), prio (asc), date (desc)
-	flaglist = sorted(flaglist, key=itemgetter(Flagged._fields.index('taskdate')), reverse=True)
+	flaglist = sorted(flaglist, key=itemgetter(Flagged._fields.index('startdate')), reverse=True)
 	flaglist = sorted(flaglist, key=itemgetter(Flagged._fields.index('project'), Flagged._fields.index('prio')))
 	return flaglist
 
@@ -292,20 +292,20 @@ def printOutFile(flaglist, flaglistarchive, tpfile):
 		print ('work:')
 		for task in flaglist:
 			if task.project == 'work':
-				print ('\t' + str(task.task))
+				print ('\t' + str(task.taskline))
 
 		print ('\nhome:')
 
 		for task in flaglist:
 			if task.project == 'home':
-				print ('\t' + str(task.task))
+				print ('\t' + str(task.taskline))
 
 
 		print ('\nRepeat:')
 
 		for task in flaglist:
 			if task.project == 'Repeat':
-				print ('\t' + str(task.task))
+				print ('\t' + str(task.taskline))
 
 
 		print ('\nArchive:')
@@ -315,18 +315,18 @@ def printOutFile(flaglist, flaglistarchive, tpfile):
 
 		for task in flaglist:
 			if task.project == 'INBOX':
-				print ('\t' + str(task.task))
+				print ('\t' + str(task.taskline))
 
 		print ('\n')
 
 		# append all done-files to archive-file
 		for task in flaglistarchive:
 			if task.project == 'Archive':
-				print ('\t' + str(task.task))
+				print ('\t' + str(task.taskline))
 
 	else:
 
-		shutil.move(tpfile, tpfile[:-8] + 'backup/todo_' + str(today_date) + '.txt')
+		shutil.move(tpfile, tpfile[:-8] + 'backup/todo_' + str(TODAY) + '.txt')
 		appendfile = open(tpfile[:-8] + 'archive.txt', 'a')
 
 		outfile = open(tpfile, 'w')
@@ -334,20 +334,20 @@ def printOutFile(flaglist, flaglistarchive, tpfile):
 		print ('work:', file=outfile)
 		for task in flaglist:
 			if task.project == 'work':
-				print ('\t' + str(task.task), file=outfile)
+				print ('\t' + str(task.taskline), file=outfile)
 
 		print ('\nhome:', file=outfile)
 
 		for task in flaglist:
 			if task.project == 'home':
-				print ('\t' + str(task.task), file=outfile)
+				print ('\t' + str(task.taskline), file=outfile)
 
 
 		print ('\nRepeat:', file=outfile)
 
 		for task in flaglist:
 			if task.project == 'Repeat':
-				print ('\t' + str(task.task), file=outfile)
+				print ('\t' + str(task.taskline), file=outfile)
 
 
 		print ('\nArchive:', file=outfile)
@@ -357,14 +357,14 @@ def printOutFile(flaglist, flaglistarchive, tpfile):
 
 		for task in flaglist:
 			if task.project == 'INBOX':
-				print ('\t' + str(task.task), file=outfile)
+				print ('\t' + str(task.taskline), file=outfile)
 
 		print ('\n', file=outfile)
 
 		# append all done-files to archive-file
 		for task in flaglistarchive:
 			if task.project == 'Archive':
-				print ('\t' + str(task.task), file=appendfile)
+				print ('\t' + str(task.taskline), file=appendfile)
 
 def sendMail(flaglist, destination):
 	if SENDMAIL:
@@ -378,9 +378,9 @@ def sendMail(flaglist, destination):
 		mytxt = mytxt + '<h2>Overdue tasks</h2><p>'
 		# Overdue
 		for task in flaglist:
-			if task.overdue == 'true':
+			if task.overdue:
 				taskstring = ''
-				cut_string = task.task.split(' ')
+				cut_string = task.taskline.split(' ')
 				for i in range(0, len(cut_string)):
 					if '@' in cut_string[i]:
 						continue
@@ -391,9 +391,9 @@ def sendMail(flaglist, destination):
 		mytxt = mytxt + '<h2>Due soon tasks</h2>'
 		# Due soon
 		for task in flaglist:
-			if task.duesoon == 'true' and task.done == 'false':
+			if task.duesoon and task.done == False:
 				taskstring = ''
-				cut_string = task.task.split(' ')
+				cut_string = task.taskline.split(' ')
 				for i in range(0, len(cut_string)):
 					if '@' in cut_string[i]:
 						continue
@@ -404,9 +404,9 @@ def sendMail(flaglist, destination):
 		mytxt = mytxt + '<h2>High and Medium tasks</h2><p>'
 		# All other high and medium prio tasks
 		for task in flaglist:
-			if task.project == destination and ( task.prio == 1 or task.prio == 2 ) and task.taskdate <= str(today_date) and ( task.overdue != 'true' or task.duesoon != 'true' ) and task.done == 'false':
+			if task.project == destination and ( task.prio == 1 or task.prio == 2 ) and task.startdate <= str(TODAY) and ( task.overdue != 'true' or task.duesoon != 'true' ) and task.done == 'false':
 				taskstring = ''
-				cut_string = task.task.split(' ')
+				cut_string = task.taskline.split(' ')
 				for i in range(0, len(cut_string)):
 					if '@start' in cut_string[i]:
 						continue
