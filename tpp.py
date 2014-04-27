@@ -372,9 +372,10 @@ def sendMail(flaglist, destination):
 		desthome = ConfigSectionMap("tpp")['desthomeemail']
 		destwork = ConfigSectionMap("tpp")['destworkemail']
 
+		mytxt = '<html><head><title>Tasks for Today</title></head><body>'
 
-		mytxt = '*Tasks for Today*\n\n'
-		mytxt = mytxt + "*Overdue tasks*\n\n"
+		mytxt = mytxt + '<h1>Tasks for Today</h1><p>'
+		mytxt = mytxt + '<h2>Overdue tasks</h2><p>'
 		# Overdue
 		for task in flaglist:
 			if task.overdue == 'true':
@@ -385,9 +386,9 @@ def sendMail(flaglist, destination):
 						continue
 					taskstring = taskstring + cut_string[i] + ' '
 				taskstring = taskstring + '@due(' + task.duedate + ')'
-				mytxt = mytxt + taskstring.strip() + '\n'
+				mytxt = mytxt + taskstring.strip() + '<br/>'
 
-		mytxt = mytxt + "\n\n*Due soon tasks*\n\n"
+		mytxt = mytxt + '<h2>Due soon tasks</h2>'
 		# Due soon
 		for task in flaglist:
 			if task.duesoon == 'true' and task.done == 'false':
@@ -398,9 +399,9 @@ def sendMail(flaglist, destination):
 						continue
 					taskstring = taskstring + cut_string[i] + ' '
 				taskstring = taskstring + '@due(' + task.duedate + ')'
-				mytxt = mytxt + taskstring.strip() + '\n'
+				mytxt = mytxt + taskstring.strip() + '<br/>'
 
-		mytxt = mytxt + "\n\n*High and Medium tasks*\n\n"
+		mytxt = mytxt + '<h2>High and Medium tasks</h2><p>'
 		# All other high and medium prio tasks
 		for task in flaglist:
 			if task.project == destination and ( task.prio == 1 or task.prio == 2 ) and task.taskdate <= str(today_date) and ( task.overdue != 'true' or task.duesoon != 'true' ) and task.done == 'false':
@@ -414,18 +415,24 @@ def sendMail(flaglist, destination):
 					taskstring = taskstring + cut_string[i] + ' '
 				if task.duedate != '2999-12-31':
 					taskstring = taskstring + '@due(' + task.duedate + ')'
-				mytxt = mytxt + taskstring.strip() + '\n'
-		msg = MIMEText(mytxt)
+				mytxt = mytxt + taskstring.strip() + '<br/>'
+
+		mytxt = mytxt + '</table></body></html>'
+
+		msg = MIMEMultipart('alternative')
+		part1 = MIMEText(mytxt, 'html')
+		#msg = MIMEText(mytxt)
 		if destination == 'home':
 			msg['To'] = email.utils.formataddr((ConfigSectionMap("tpp")['desthomename'], desthome))
 		elif destination == 'work':
 			msg['To'] = email.utils.formataddr((ConfigSectionMap("tpp")['destworkname'], destwork))
 		else:
-			print('Error, wrong destination')
+			print('Error, wrong destination type')
 			return -1
 		msg['From'] = email.utils.formataddr((ConfigSectionMap("tpp")['sourcename'], source))
 		msg['Subject'] = 'Taskpaper daily overview'
 
+		msg.attach(part1)
 		s = smtplib.SMTP('localhost')
 
 		if destination == 'home':
