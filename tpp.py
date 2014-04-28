@@ -54,21 +54,21 @@ SENDMAIL = Config.getboolean('tpp', 'sendmail')
 DUEDELTA = ConfigSectionMap('tpp')['duedelta']
 DUEINTERVAL = Config.getint('tpp', 'dueinterval')
 
-# Data structure
-# ....prio: priority of the task - high, medium or low; mapped to 1, 2 or 3
-# ....startdate: when will the task be visible - format: yyyy-mm-dd
-# ....project: with which project is the task associated
-# ....taskline: the actual task line
-# ....done: is it done?; based on @done tag; boolean
-# ....repeat: only for tasks in the project"repeat"; boolean
-# ....repeatinterval: the repeat inteval is given by a number followed by an interval type; e.g.
-# ........2w = 2 weeks
-# ........3d = 3 days
-# ........1m = 1 month
-# ....duedate: same format as startdate
-# ....duesoon: boolean; true if today is duedate minus DUEDELTA in DUEINTERVAL (constants) or less
-# ....overdue: boolean; true if today is after duedate
-#
+"""Data structure
+....prio: priority of the task - high, medium or low; mapped to 1, 2 or 3
+....startdate: when will the task be visible - format: yyyy-mm-dd
+....project: with which project is the task associated
+....taskline: the actual task line
+....done: is it done?; based on @done tag; boolean
+....repeat: only for tasks in the project"repeat"; boolean
+....repeatinterval: the repeat inteval is given by a number followed by an interval type; e.g.
+........2w = 2 weeks
+........3d = 3 days
+........1m = 1 month
+....duedate: same format as startdate
+....duesoon: boolean; true if today is duedate minus DUEDELTA in DUEINTERVAL (constants) or less
+....overdue: boolean; true if today is after duedate"""
+
 
 Flagged = namedtuple('Flagged', [
     'prio',
@@ -140,8 +140,7 @@ def parseInput(tpfile):
                 done = True
             if '@repeat' in line:
                 repeat = True
-                repeatinterval = re.search(r'\@repeat\((.*?)\)',
-                        line).group(1)
+                repeatinterval = re.search(r'\@repeat\((.*?)\)', line).group(1)
             if '@due' in line:
                 duedate = re.search(r'\@due\((.*?)\)', line).group(1)
                 duealert = datetime.date(parser.parse(duedate)) \
@@ -544,11 +543,11 @@ def sortList(flaglist):
     # sort in following order: project (asc), prio (asc), date (desc)
 
     flaglist = sorted(flaglist,
-              		key=itemgetter(Flagged._fields.index('startdate'
-                    )), reverse=True)
+		key=itemgetter(Flagged._fields.index('startdate'
+        )), reverse=True)
     flaglist = sorted(flaglist,
-                    key=itemgetter(Flagged._fields.index('project'),
-                    Flagged._fields.index('prio')))
+        key=itemgetter(Flagged._fields.index('project'),
+        Flagged._fields.index('prio')))
     return flaglist
 
 
@@ -650,14 +649,14 @@ def sendMail(flaglist, destination):
                         continue
                     taskstring = taskstring + cut_string[i] + ' '
                 taskstring = taskstring + '@due(' + task.duedate + ')'
-                mytxt = mytxt + taskstring.strip() + '<br/>'
+                mytxt = mytxt + '<FONT COLOR="#ff0033">' + taskstring.strip() + '</FONT>' + '<br/>'
 
         mytxt = mytxt + '<h2>Due soon tasks</h2>'
 
         # Due soon
 
         for task in flaglist:
-            if task.duesoon and task.done is False:
+            if task.duesoon is True and task.done is False:
                 taskstring = ''
                 cut_string = task.taskline.split(' ')
                 for i in range(0, len(cut_string)):
@@ -667,15 +666,36 @@ def sendMail(flaglist, destination):
                 taskstring = taskstring + '@due(' + task.duedate + ')'
                 mytxt = mytxt + taskstring.strip() + '<br/>'
 
-        mytxt = mytxt + '<h2>High and Medium tasks</h2><p>'
+        mytxt = mytxt + '<h2>High priority tasks</h2><p>'
 
-        # All other high and medium prio tasks
+        # All other high prio tasks
 
         for task in flaglist:
-            if task.project == destination and (task.prio == 1
-                    or task.prio == 2) and task.startdate <= str(TODAY) \
-                    and (task.overdue != 'true' or task.duesoon != 'true') \
-                    and task.done == 'false':
+            if task.project == destination and task.prio == 1 \
+                    and task.startdate <= str(TODAY) \
+                    and (task.overdue is not True or task.duesoon is not True) \
+                    and task.done is False:
+                taskstring = ''
+                cut_string = task.taskline.split(' ')
+                for i in range(0, len(cut_string)):
+                    if '@start' in cut_string[i]:
+                        continue
+                    if '@prio' in cut_string[i]:
+                        continue
+                    taskstring = taskstring + cut_string[i] + ' '
+                if task.duedate != '2999-12-31':
+                    taskstring = taskstring + '@due(' + task.duedate + ')'
+                mytxt = mytxt + '<FONT COLOR="#ff0033">' + taskstring.strip() + '</FONT>' + '<br/>'
+
+        mytxt = mytxt + '<h2>Medium priority tasks</h2><p>'
+
+        # All other medium prio tasks
+
+        for task in flaglist:
+            if task.project == destination and \
+                    task.prio == 2 and task.startdate <= str(TODAY) \
+                    and (task.overdue is not True or task.duesoon is not True) \
+                    and task.done is False:
                 taskstring = ''
                 cut_string = task.taskline.split(' ')
                 for i in range(0, len(cut_string)):
