@@ -638,8 +638,8 @@ def sendMail(content, subject, sender, receiver, text_subtype, encrypted):
         if encrypted is False:
             msg = MIMEText(content, text_subtype)
         elif encrypted is True:
-            contentenc = gpg.encrypt(content, ConfigSectionMap('mail')['targetfingerprint'],
-                always_trust=True)
+            contentenc = gpg.encrypt(content,
+                ConfigSectionMap('mail')['targetfingerprint'], always_trust=True)
             msg = MIMEText(str(contentenc), text_subtype)
         else:
             print('encrypted parameter is not boolean')
@@ -666,12 +666,12 @@ def createMail(flaglist, destination, encrypted):
         desthome = ConfigSectionMap('mail')['desthomeemail']
         destwork = ConfigSectionMap('mail')['destworkemail']
 
-        mytxt = \
-            '<html><head><title>Tasks for Today</title></head><body>'
+        mytxt = '<html><head><title>Tasks for Today</title></head><body>'
 
         mytxt = mytxt + '<h1>Tasks for Today</h1><p>'
+        mytxtasc = '# Tasks for Today #\n'
         mytxt = mytxt + '<h2>Overdue tasks</h2><p>'
-
+        mytxtasc = mytxtasc + '\n## Overdue tasks ##\n'
         # Overdue
 
         for task in flaglist:
@@ -684,8 +684,10 @@ def createMail(flaglist, destination, encrypted):
                     taskstring = taskstring + cut_string[i] + ' '
                 taskstring = taskstring + '@due(' + task.duedate + ')'
                 mytxt = mytxt + '<FONT COLOR="#ff0033">' + taskstring.strip() + '</FONT>' + '<br/>'
+                mytxtasc = mytxtasc + taskstring.strip() + '\n'
 
         mytxt = mytxt + '<h2>Due soon tasks</h2>'
+        mytxtasc = mytxtasc + '\n## Due soon tasks ##\n'
 
         # Due soon
 
@@ -699,8 +701,10 @@ def createMail(flaglist, destination, encrypted):
                     taskstring = taskstring + cut_string[i] + ' '
                 taskstring = taskstring + '@due(' + task.duedate + ')'
                 mytxt = mytxt + taskstring.strip() + '<br/>'
+                mytxtasc = mytxtasc + taskstring.strip() + '\n'
 
         mytxt = mytxt + '<h2>High priority tasks</h2><p>'
+        mytxtasc = mytxtasc + '\n## High priority tasks ##\n'
 
         # All other high prio tasks
 
@@ -720,8 +724,10 @@ def createMail(flaglist, destination, encrypted):
                 if task.duedate != '2999-12-31':
                     taskstring = taskstring + '@due(' + task.duedate + ')'
                 mytxt = mytxt + '<FONT COLOR="#ff0033">' + taskstring.strip() + '</FONT>' + '<br/>'
+                mytxtasc = mytxtasc + taskstring.strip() + '\n'
 
         mytxt = mytxt + '<h2>Medium priority tasks</h2><p>'
+        mytxtasc = mytxtasc + '\n## Medium priority tasks ##\n'
 
         # All other medium prio tasks
 
@@ -742,13 +748,14 @@ def createMail(flaglist, destination, encrypted):
                     taskstring = taskstring + '@due(' + task.duedate \
                         + ')'
                 mytxt = mytxt + taskstring.strip() + '<br/>'
+                mytxtasc = mytxtasc + taskstring.strip() + '\n'
 
         mytxt = mytxt + '</table></body></html>'
 
         if destination == 'home':
             sendMail(mytxt, 'Taskpaper daily overview', source, desthome, 'html', False)
         elif destination == 'work':
-            sendMail(mytxt, 'Taskpaper daily overview', source, destwork, 'html', True)
+            sendMail(mytxtasc, 'Taskpaper daily overview', source, destwork, 'text', True)
         else:
             print("wrong destination, aborting")
             return -1
