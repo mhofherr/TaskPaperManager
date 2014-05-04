@@ -15,17 +15,26 @@ The variable parameters are configured via a separate config file (tpp.cfg):
 
     [tpp]
     debug: False
-    sendmail: True
     duedelta: days
     dueinterval: 3
-    sourceemail: SENDERADDRESS
-    destworkemail: DESTADDRESS(WORK)
-    desthomeemail: DESTADDRESS(HOME)
-    sourcename: SENDERNAME
-    destworkname: DESTNAME(WORK)
-    desthomename: DESTNAME(HOME)
+
+    [mail]
+    encryptmail: True
+    gnupghome: <Path to your home>/.gnupg
+    targetfingerprint: <Fingerprint of the gpg key of the email receiver>
+    sendmail: True
+    smtpserver = <FQDN of your smtp server>
+    smtpport = <listening port of your smtp server>
+    smtpuser = <your user on the server>
+    smtppassword = <your password>
+    sourceemail: <sender mail address>
+    destworkemail: <receiver mail address; work>
+    desthomeemail: <receiver mail address; home>
 
 *dueinterval:* all tasks will be tagged as @duesoon when today is x days (or whatever you define for *duedelta*) before the duedate (defined in @due(...))
+
+## Sending email
+You can either send email encrypted (gpg) or in plain text. The communication to the server uses SSL/TLS with starttls. Content encryption requires gnupg installed and the python-gnupg module.
 
 ## TaskPaper Theme
 
