@@ -16,14 +16,13 @@ from operator import itemgetter
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
 import ConfigParser
+import gnupg
 
 import shutil
 import sys
 import re
 import smtplib
 from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-import email.utils
 
 
 def ConfigSectionMap(section):
@@ -45,14 +44,24 @@ def ConfigSectionMap(section):
 Config = ConfigParser.ConfigParser()
 
 # set correct path if not in local directory
-
 Config.read('tpp.cfg')
 
+
 DEBUG = Config.getboolean('tpp', 'debug')
-SENDMAIL = Config.getboolean('tpp', 'sendmail')
+SENDMAIL = Config.getboolean('mail', 'sendmail')
+if SENDMAIL is True:
+    SMTPSERVER = ConfigSectionMap('mail')['smtpserver']
+    SMTPPORT = Config.getint('mail', 'smtpport')
+    SMTPUSER = ConfigSectionMap('mail')['smtpuser']
+    SMTPPASSWORD = ConfigSectionMap('mail')['smtppassword']
 
 DUEDELTA = ConfigSectionMap('tpp')['duedelta']
 DUEINTERVAL = Config.getint('tpp', 'dueinterval')
+
+
+if Config.getboolean('mail', 'encryptmail') is True:
+    gpg = gnupg.GPG(gnupghome=ConfigSectionMap('mail')['gnupghome'])
+    gpg.encoding = 'utf-8'
 
 """Data structure
 ....prio: priority of the task - high, medium or low; mapped to 1, 2 or 3
@@ -126,8 +135,6 @@ def parseInput(tpfile):
             duedate = '2999-12-31'
             duesoon = False
             overdue = False
-
-            # remove empty lines and task-lines without any content
 
             if not line.strip():
                 continue
@@ -626,11 +633,38 @@ def printOutFile(flaglist, flaglistarchive, tpfile):
                 print('\t' + str(task.taskline), file=appendfile)
 
 
-def sendMail(flaglist, destination):
+def sendMail(content, subject, sender, receiver, text_subtype, encrypted):
+    try:
+        if encrypted is False:
+            msg = MIMEText(content, text_subtype)
+        elif encrypted is True:
+            contentenc = gpg.encrypt(content, ConfigSectionMap('mail')['targetfingerprint'],
+                always_trust=True)
+            msg = MIMEText(str(contentenc), text_subtype)
+        else:
+            print('encrypted parameter is not boolean')
+            return -1
+        msg['Subject'] = subject
+        msg['From'] = sender
+
+        conn = smtplib.SMTP(SMTPSERVER, SMTPPORT)
+        conn.starttls()
+        conn.set_debuglevel(False)
+        conn.login(SMTPUSER, SMTPPASSWORD)
+        try:
+            conn.sendmail(sender, receiver, msg.as_string())
+        finally:
+            conn.close()
+
+    except Exception, exc:
+        sys.exit("sending email failed; %s" % str(exc))
+
+
+def createMail(flaglist, destination, encrypted):
     if SENDMAIL:
-        source = ConfigSectionMap('tpp')['sourceemail']
-        desthome = ConfigSectionMap('tpp')['desthomeemail']
-        destwork = ConfigSectionMap('tpp')['destworkemail']
+        source = ConfigSectionMap('mail')['sourceemail']
+        desthome = ConfigSectionMap('mail')['desthomeemail']
+        destwork = ConfigSectionMap('mail')['destworkemail']
 
         mytxt = \
             '<html><head><title>Tasks for Today</title></head><body>'
@@ -641,7 +675,7 @@ def sendMail(flaglist, destination):
         # Overdue
 
         for task in flaglist:
-            if task.overdue:
+            if task.overdue is True and task.project == destination:
                 taskstring = ''
                 cut_string = task.taskline.split(' ')
                 for i in range(0, len(cut_string)):
@@ -656,7 +690,7 @@ def sendMail(flaglist, destination):
         # Due soon
 
         for task in flaglist:
-            if task.duesoon is True and task.done is False:
+            if task.project == destination and task.duesoon is True and task.done is False:
                 taskstring = ''
                 cut_string = task.taskline.split(' ')
                 for i in range(0, len(cut_string)):
@@ -711,29 +745,13 @@ def sendMail(flaglist, destination):
 
         mytxt = mytxt + '</table></body></html>'
 
-        msg = MIMEMultipart('alternative')
-        part1 = MIMEText(mytxt, 'html')
-
-        # msg = MIMEText(mytxt)
-
         if destination == 'home':
-            msg['To'] = email.utils.formataddr((ConfigSectionMap('tpp')['desthomename'], desthome))
+            sendMail(mytxt, 'Taskpaper daily overview', source, desthome, 'html', False)
         elif destination == 'work':
-            msg['To'] = email.utils.formataddr((ConfigSectionMap('tpp')['destworkname'], destwork))
+            sendMail(mytxt, 'Taskpaper daily overview', source, destwork, 'html', True)
         else:
-            print('Error, wrong destination type')
+            print("wrong destination, aborting")
             return -1
-        msg['From'] = email.utils.formataddr((ConfigSectionMap('tpp')['sourcename'], source))
-        msg['Subject'] = 'Taskpaper daily overview'
-
-        msg.attach(part1)
-        s = smtplib.SMTP('localhost')
-
-        if destination == 'home':
-            s.sendmail(source, desthome, msg.as_string())
-        elif destination == 'work':
-            s.sendmail(source, destwork, msg.as_string())
-        s.quit()
 
 
 def main():
@@ -745,8 +763,8 @@ def main():
     flaglist = setRepeat(flaglist)
     flaglist = sortList(flaglist)
     printOutFile(flaglist, flaglistarchive, tpfile)
-    sendMail(flaglist, 'home')
-    sendMail(flaglist, 'work')
+    createMail(flaglist, 'home', False)
+    createMail(flaglist, 'work', True)
 
 
 main()
