@@ -16,13 +16,10 @@ from operator import itemgetter
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
 import ConfigParser
-import gnupg
 
 import shutil
 import sys
 import re
-import smtplib
-from email.mime.text import MIMEText
 
 
 def ConfigSectionMap(section):
@@ -50,6 +47,8 @@ Config.read('tpp.cfg')
 DEBUG = Config.getboolean('tpp', 'debug')
 SENDMAIL = Config.getboolean('mail', 'sendmail')
 if SENDMAIL is True:
+    import smtplib
+    from email.mime.text import MIMEText
     SMTPSERVER = ConfigSectionMap('mail')['smtpserver']
     SMTPPORT = Config.getint('mail', 'smtpport')
     SMTPUSER = ConfigSectionMap('mail')['smtpuser']
@@ -60,6 +59,7 @@ DUEINTERVAL = Config.getint('tpp', 'dueinterval')
 
 
 if Config.getboolean('mail', 'encryptmail') is True:
+    import gnupg
     gpg = gnupg.GPG(gnupghome=ConfigSectionMap('mail')['gnupghome'])
     gpg.encoding = 'utf-8'
 
@@ -90,6 +90,7 @@ Flagged = namedtuple('Flagged', [
     'duedate',
     'duesoon',
     'overdue',
+    'maybe',
 ])
 Flaggednew = namedtuple('Flaggednew', [
     'prio',
@@ -102,6 +103,7 @@ Flaggednew = namedtuple('Flaggednew', [
     'duedate',
     'duesoon',
     'overdue',
+    'maybe',
 ])
 Flaggedarchive = namedtuple('Flaggedarchive', [
     'prio',
@@ -114,10 +116,34 @@ Flaggedarchive = namedtuple('Flaggedarchive', [
     'duedate',
     'duesoon',
     'overdue',
+    'maybe',
+])
+Flaggedmaybe = namedtuple('Flaggedmaybe', [
+    'prio',
+    'startdate',
+    'project',
+    'taskline',
+    'done',
+    'repeat',
+    'repeatinterval',
+    'duedate',
+    'duesoon',
+    'overdue',
+    'maybe',
 ])
 
 TODAY = datetime.date(datetime.now())
 DAYBEFORE = TODAY - timedelta(days=1)
+
+
+def printDebugOutput(flaglist, prepend):
+    for task in flaglist:
+        print(prepend + str(task.prio) + ' | ' + str(task.startdate)
+              + ' | ' + str(task.project) + ' | '
+              + str(task.taskline) + ' | ' + str(task.done) + ' | '
+              + str(task.repeat) + ' | ' + str(task.repeatinterval)
+              + ' | ' + str(task.duesoon) + ' | '
+              + str(task.overdue) + ' | ' + str(task.maybe))
 
 
 def parseInput(tpfile):
@@ -135,6 +161,7 @@ def parseInput(tpfile):
             duedate = '2999-12-31'
             duesoon = False
             overdue = False
+            maybe = False
 
             if not line.strip():
                 continue
@@ -145,6 +172,8 @@ def parseInput(tpfile):
                 continue
             if '@done' in line:
                 done = True
+            if '@maybe' in line:
+                maybe = True
             if '@repeat' in line:
                 repeat = True
                 repeatinterval = re.search(r'\@repeat\((.*?)\)', line).group(1)
@@ -177,6 +206,7 @@ def parseInput(tpfile):
                     duedate,
                     duesoon,
                     overdue,
+                    maybe
                 ))
             else:
                 flaglist.append(Flagged(
@@ -190,18 +220,13 @@ def parseInput(tpfile):
                     duedate,
                     duesoon,
                     overdue,
+                    maybe
                 ))
         except Exception, e:
             errlist.append((line, e))
     f.close()
     if DEBUG:
-        for task in flaglist:
-            print('IN:' + str(task.prio) + ' | ' + str(task.startdate)
-                  + ' | ' + str(task.project) + ' | '
-                  + str(task.taskline) + ' | ' + str(task.done) + ' | '
-                  + str(task.repeat) + ' | ' + str(task.repeatinterval)
-                  + ' | ' + str(task.duesoon) + ' | '
-                  + str(task.overdue))
+        printDebugOutput(flaglist, 'AfterRead:')
     return flaglist
 
 
@@ -230,6 +255,7 @@ def removeTags(flaglist):
                 task.duedate,
                 task.duesoon,
                 task.overdue,
+                task.maybe
             ))
         else:
             flaglistnew.append(Flaggednew(
@@ -243,6 +269,7 @@ def removeTags(flaglist):
                 task.duedate,
                 task.duesoon,
                 task.overdue,
+                task.maybe,
             ))
 
     # move items from flaglistnew back to flaglist
@@ -260,6 +287,7 @@ def removeTags(flaglist):
             tasknew.duedate,
             tasknew.duesoon,
             tasknew.overdue,
+            tasknew.maybe,
         ))
     return flaglist
 
@@ -281,6 +309,7 @@ def setTags(flaglist):
                 task.duedate,
                 task.duesoon,
                 task.overdue,
+                task.maybe,
             ))
         elif task.duesoon:
             flaglistnew.append(Flaggednew(
@@ -294,6 +323,7 @@ def setTags(flaglist):
                 task.duedate,
                 task.duesoon,
                 task.overdue,
+                task.maybe,
             ))
         else:
             flaglistnew.append(Flaggednew(
@@ -307,6 +337,7 @@ def setTags(flaglist):
                 task.duedate,
                 task.duesoon,
                 task.overdue,
+                task.maybe,
             ))
 
     # move items from flaglistnew back to flaglist
@@ -324,6 +355,7 @@ def setTags(flaglist):
             tasknew.duedate,
             tasknew.duesoon,
             tasknew.overdue,
+            tasknew.maybe,
         ))
     return flaglist
 
@@ -337,13 +369,7 @@ def archiveDone(flaglist):
     for task in flaglist:
         if task.done:
             if DEBUG:
-                print('DONELOOP:' + str(task.prio) + ' | '
-                      + str(task.startdate) + ' | ' + str(task.project)
-                      + ' | ' + str(task.taskline) + ' | '
-                      + str(task.done) + ' | ' + str(task.repeat)
-                      + ' | ' + str(task.repeatinterval) + ' | '
-                      + str(task.duedate) + ' | ' + str(task.duesoon)
-                      + ' | ' + str(task.overdue))
+                printDebugOutput(flaglist, 'BeforeDone:')
 
             taskstring = ''
             cut_string = task.taskline.split(' ')
@@ -364,6 +390,7 @@ def archiveDone(flaglist):
                 task.duedate,
                 task.duesoon,
                 task.overdue,
+                task.maybe,
             ))
         else:
             flaglistnew.append(Flaggednew(
@@ -377,6 +404,7 @@ def archiveDone(flaglist):
                 task.duedate,
                 task.duesoon,
                 task.overdue,
+                task.maybe,
             ))
     flaglist = []
     for tasknew in flaglistnew:
@@ -391,12 +419,82 @@ def archiveDone(flaglist):
             tasknew.duedate,
             tasknew.duesoon,
             tasknew.overdue,
+            tasknew.maybe,
         ))
     return (flaglist, flaglistarchive)
 
 
-# check repeat statements; instantiate new tasks if startdate + repeat interval = today
+# check @maybe and move to archive file (maybe)
+def archiveMaybe(flaglist):
+    flaglistnew = []
+    flaglistmaybe = []
 
+    for task in flaglist:
+        if task.maybe:
+            if DEBUG:
+                printDebugOutput(flaglist, 'Maybe:')
+
+            taskstring = ''
+            cut_string = task.taskline.split(' ')
+            for i in range(0, len(cut_string)):
+                if '@maybe' in cut_string[i]:
+                    continue
+                elif '@start' in cut_string[i]:
+                    continue
+                elif '@due' in cut_string[i]:
+                    continue
+                elif '@prio' in cut_string[i]:
+                    continue
+                elif '@project' in cut_string[i]:
+                    continue
+                taskstring = taskstring + cut_string[i] + ' '
+            newtask = taskstring + ' @project(' + task.project + ')'
+            flaglistmaybe.append(Flaggedmaybe(
+                task.prio,
+                task.startdate,
+                'Maybe',
+                newtask,
+                task.done,
+                task.repeat,
+                task.repeatinterval,
+                task.duedate,
+                task.duesoon,
+                task.overdue,
+                task.maybe,
+            ))
+        else:
+            flaglistnew.append(Flaggednew(
+                task.prio,
+                task.startdate,
+                task.project,
+                task.taskline,
+                task.done,
+                task.repeat,
+                task.repeatinterval,
+                task.duedate,
+                task.duesoon,
+                task.overdue,
+                task.maybe,
+            ))
+    flaglist = []
+    for tasknew in flaglistnew:
+        flaglist.append(Flagged(
+            tasknew.prio,
+            tasknew.startdate,
+            tasknew.project,
+            tasknew.taskline,
+            tasknew.done,
+            tasknew.repeat,
+            tasknew.repeatinterval,
+            tasknew.duedate,
+            tasknew.duesoon,
+            tasknew.overdue,
+            tasknew.maybe,
+        ))
+    return (flaglist, flaglistmaybe)
+
+
+# check repeat statements; instantiate new tasks if startdate + repeat interval = today
 def setRepeat(flaglist):
     flaglistnew = []
 
@@ -488,6 +586,7 @@ def setRepeat(flaglist):
                     task.duedate,
                     task.duesoon,
                     task.overdue,
+                    task.maybe,
                 ))
             else:
 
@@ -504,6 +603,7 @@ def setRepeat(flaglist):
                     task.duedate,
                     task.duesoon,
                     task.overdue,
+                    task.maybe,
                 ))
         else:
             flaglistnew.append(Flaggednew(
@@ -517,6 +617,7 @@ def setRepeat(flaglist):
                 task.duedate,
                 task.duesoon,
                 task.overdue,
+                task.maybe,
             ))
 
     # move items from flaglistnew back to flaglist
@@ -534,14 +635,12 @@ def setRepeat(flaglist):
             tasknew.duedate,
             tasknew.duesoon,
             tasknew.overdue,
+            tasknew.maybe,
         ))
 
     if DEBUG:
-        for task in flaglist:
-            print('OUT:' + str(task.prio) + ' | ' + str(task.startdate)
-                  + ' | ' + str(task.project) + ' | '
-                  + str(task.taskline) + ' | ' + str(task.done) + ' | '
-                  + str(task.repeat) + ' | ' + str(task.repeatinterval))
+        if DEBUG:
+            printDebugOutput(flaglist, 'AfterRepeat:')
     return flaglist
 
 
@@ -550,15 +649,13 @@ def sortList(flaglist):
     # sort in following order: project (asc), prio (asc), date (desc)
 
     flaglist = sorted(flaglist,
-		key=itemgetter(Flagged._fields.index('startdate'
-        )), reverse=True)
+        key=itemgetter(Flagged._fields.index('startdate')), reverse=True)
     flaglist = sorted(flaglist,
-        key=itemgetter(Flagged._fields.index('project'),
-        Flagged._fields.index('prio')))
+        key=itemgetter(Flagged._fields.index('project'),Flagged._fields.index('prio')))
     return flaglist
 
 
-def printOutFile(flaglist, flaglistarchive, tpfile):
+def printOutFile(flaglist, flaglistarchive, flaglistmaybe, tpfile):
     if DEBUG:
         print('work:')
         for task in flaglist:
@@ -585,17 +682,21 @@ def printOutFile(flaglist, flaglistarchive, tpfile):
             if task.project == 'INBOX':
                 print('\t' + str(task.taskline))
 
-        print('\n')
-
-        # append all done-files to archive-file
+        print('\nArchive:')
 
         for task in flaglistarchive:
             if task.project == 'Archive':
                 print('\t' + str(task.taskline))
+        print('\nMaybe:')
+
+        for task in flaglistmaybe:
+            if task.project == 'Maybe':
+                print('\t' + str(task.taskline))
     else:
 
         shutil.move(tpfile, tpfile[:-8] + 'backup/todo_' + str(TODAY) + '.txt')
-        appendfile = open(tpfile[:-8] + 'archive.txt', 'a')
+        appendfilearchive = open(tpfile[:-8] + 'archive.txt', 'a')
+        appendfilemaybe = open(tpfile[:-8] + 'maybe.txt', 'a')
 
         outfile = open(tpfile, 'w')
 
@@ -627,10 +728,14 @@ def printOutFile(flaglist, flaglistarchive, tpfile):
         print('\n', file=outfile)
 
         # append all done-files to archive-file
-
         for task in flaglistarchive:
             if task.project == 'Archive':
-                print('\t' + str(task.taskline), file=appendfile)
+                print('\t' + str(task.taskline), file=appendfilearchive)
+
+        ## append all maybe-files to maybe.txt
+        for task in flaglistmaybe:
+            if task.project == 'Maybe':
+                print('\t' + str(task.taskline), file=appendfilemaybe)
 
 
 def sendMail(content, subject, sender, receiver, text_subtype, encrypted):
@@ -767,9 +872,10 @@ def main():
     flaglist = removeTags(flaglist)
     flaglist = setTags(flaglist)
     (flaglist, flaglistarchive) = archiveDone(flaglist)
+    (flaglist, flaglistmaybe) = archiveMaybe(flaglist)
     flaglist = setRepeat(flaglist)
     flaglist = sortList(flaglist)
-    printOutFile(flaglist, flaglistarchive, tpfile)
+    printOutFile(flaglist, flaglistarchive, flaglistmaybe, tpfile)
     createMail(flaglist, 'home', False)
     createMail(flaglist, 'work', True)
 
