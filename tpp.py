@@ -560,6 +560,7 @@ def setRepeat(flaglist):
                     task.duedate,
                     task.duesoon,
                     task.overdue,
+                    task.maybe,
                 ))
 
                 # remove old start-date in taskstring; add newstartdate as start date instead
