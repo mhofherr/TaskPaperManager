@@ -10,6 +10,7 @@ It provides the following features:
 * send daily status mails for @high, @medium, @duesoon and @overdue tasks
 * flag tasks with due-dates as @duesoon or @overdue (helpful for hightlighting with modified TaskPaper Theme)
 * Sort the list (primary sort criterium: @prio, secondary: @start)
+* Copy tasks with the tag @maybe in a dedicated maybe list and remove from master list
 
 The variable parameters are configured via a separate config file (tpp.cfg):
 
@@ -35,6 +36,8 @@ The variable parameters are configured via a separate config file (tpp.cfg):
 
 ## Sending email
 You can either send email encrypted (gpg) or in plain text. The communication to the server uses SSL/TLS with starttls. Content encryption requires gnupg installed and the python-gnupg module.
+
+## Sending pushover messages
 
 ## TaskPaper Theme
 
