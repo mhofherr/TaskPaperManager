@@ -53,6 +53,9 @@ if SENDMAIL is True:
     SMTPPORT = Config.getint('mail', 'smtpport')
     SMTPUSER = ConfigSectionMap('mail')['smtpuser']
     SMTPPASSWORD = ConfigSectionMap('mail')['smtppassword']
+if Config.getboolean('tpp', 'pushover') is True:
+    import httplib
+    import urllib
 
 DUEDELTA = ConfigSectionMap('tpp')['duedelta']
 DUEINTERVAL = Config.getint('tpp', 'dueinterval')
@@ -739,6 +742,27 @@ def printOutFile(flaglist, flaglistarchive, flaglistmaybe, tpfile):
                 print('\t' + str(task.taskline), file=appendfilemaybe)
 
 
+def createPushover(flaglist):
+    ### Erstellung content
+    ### Laenge pruefen
+    sendPushover(content)
+
+def sendPushover(content):
+    try:
+
+        conn = httplib.HTTPSConnection("api.pushover.net:443")
+        conn.request("POST", "/1/messages.json",
+        urllib.urlencode({
+            "token": "aWR4H5tsEYog8Wn4f8mqBKPrQoSJ8J",
+            "user": "uVx7HX5L1m1FzBCrxC18AAUXEgDsCn",
+            "message": content,
+        }), {"Content-type": "application/x-www-form-urlencoded"})
+        conn.getresponse()
+
+    except Exception, exc:
+        sys.exit("sending pushover message failed; %s" % str(exc))
+
+
 def sendMail(content, subject, sender, receiver, text_subtype, encrypted):
     try:
         if encrypted is False:
@@ -764,7 +788,6 @@ def sendMail(content, subject, sender, receiver, text_subtype, encrypted):
 
     except Exception, exc:
         sys.exit("sending email failed; %s" % str(exc))
-
 
 def createMail(flaglist, destination, encrypted):
     if SENDMAIL:
@@ -879,6 +902,6 @@ def main():
     printOutFile(flaglist, flaglistarchive, flaglistmaybe, tpfile)
     createMail(flaglist, 'home', False)
     createMail(flaglist, 'work', True)
-
+    createPushover(flaglist)
 
 main()
