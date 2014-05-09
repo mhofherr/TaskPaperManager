@@ -53,7 +53,8 @@ if SENDMAIL is True:
     SMTPPORT = Config.getint('mail', 'smtpport')
     SMTPUSER = ConfigSectionMap('mail')['smtpuser']
     SMTPPASSWORD = ConfigSectionMap('mail')['smtppassword']
-if Config.getboolean('tpp', 'pushover') is True:
+PUSHOVER = Config.getboolean('pushover', 'pushover')
+if PUSHOVER is True:
     import httplib
     import urllib
 
@@ -742,21 +743,34 @@ def printOutFile(flaglist, flaglistarchive, flaglistmaybe, tpfile):
                 print('\t' + str(task.taskline), file=appendfilemaybe)
 
 
-def createPushover(flaglist):
-    ### Erstellung content
-    ### Laenge pruefen
-    sendPushover(content)
+def createPushover(flaglist, destination):
+    mytxt = 'Open tasks with prio high or overdue:\n'
+    for task in flaglist:
+        if task.project == destination and \
+            (task.overdue is True or task.prio == 1) and \
+            task.startdate <= str(TODAY):
+                taskstring = ''
+                cut_string = task.taskline.split(' ')
+                for i in range(0, len(cut_string)):
+                    if '@start' in cut_string[i]:
+                        continue
+                    taskstring = taskstring + cut_string[i] + ' '
+                mytxt = mytxt + taskstring.strip() + '\n'
+    # pushover limits messages sizes to 512 characters
+    if len(mytxt) > 512:
+            mytxt = mytxt[:512]
+    sendPushover(mytxt)
+
 
 def sendPushover(content):
     try:
-
         conn = httplib.HTTPSConnection("api.pushover.net:443")
         conn.request("POST", "/1/messages.json",
-        urllib.urlencode({
-            "token": "aWR4H5tsEYog8Wn4f8mqBKPrQoSJ8J",
-            "user": "uVx7HX5L1m1FzBCrxC18AAUXEgDsCn",
-            "message": content,
-        }), {"Content-type": "application/x-www-form-urlencoded"})
+            urllib.urlencode({
+                "token": ConfigSectionMap('pushover')['pushovertoken'],
+                "user": ConfigSectionMap('pushover')['pushoveruser'],
+                "message": content,
+            }), {"Content-type": "application/x-www-form-urlencoded"})
         conn.getresponse()
 
     except Exception, exc:
@@ -788,6 +802,7 @@ def sendMail(content, subject, sender, receiver, text_subtype, encrypted):
 
     except Exception, exc:
         sys.exit("sending email failed; %s" % str(exc))
+
 
 def createMail(flaglist, destination, encrypted):
     if SENDMAIL:
@@ -900,8 +915,10 @@ def main():
     flaglist = setRepeat(flaglist)
     flaglist = sortList(flaglist)
     printOutFile(flaglist, flaglistarchive, flaglistmaybe, tpfile)
-    createMail(flaglist, 'home', False)
-    createMail(flaglist, 'work', True)
-    createPushover(flaglist)
+    if SENDMAIL is True:
+        createMail(flaglist, 'home', False)
+        createMail(flaglist, 'work', True)
+    if PUSHOVER is True:
+        createPushover(flaglist, 'home')
 
 main()
