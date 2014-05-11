@@ -142,290 +142,301 @@ DAYBEFORE = TODAY - timedelta(days=1)
 
 def printDebugOutput(flaglist, prepend):
     for task in flaglist:
-        print(prepend + str(task.prio) + ' | ' + str(task.startdate)
-              + ' | ' + str(task.project) + ' | '
-              + str(task.taskline) + ' | ' + str(task.done) + ' | '
-              + str(task.repeat) + ' | ' + str(task.repeatinterval)
-              + ' | ' + str(task.duesoon) + ' | '
-              + str(task.overdue) + ' | ' + str(task.maybe))
+        #print(prepend + str(task.prio) + ' | ' + str(task.startdate)
+        #      + ' | ' + str(task.project) + ' | '
+        #      + str(task.taskline) + ' | ' + str(task.done) + ' | '
+        #      + str(task.repeat) + ' | ' + str(task.repeatinterval)
+        #      + ' | ' + str(task.duesoon) + ' | '
+        #      + str(task.overdue) + ' | ' + str(task.maybe))
+        print("%s: %s | %s | %s |  %s | %s | %s | %s | %s | %s | %s" %\
+            (prepend, task.prio, task.startdate, task.project, task.taskline,\
+            task.done, task.repeat, task.repeatinterval,
+            task.duesoon, task.overdue, task.maybe))
 
 
 def parseInput(tpfile):
-    with open(tpfile, 'rb') as f:
-        tplines = f.readlines()
-    flaglist = []
-    errlist = []
-    project = ''
+    try:
+        with open(tpfile, 'rb') as f:
+            tplines = f.readlines()
+        flaglist = []
+        errlist = []
+        project = ''
 
-    for line in tplines:
-        try:
-            done = False
-            repeat = False
-            repeatinterval = '-'
-            duedate = '2999-12-31'
-            duesoon = False
-            overdue = False
-            maybe = False
+        for line in tplines:
+            try:
+                done = False
+                repeat = False
+                repeatinterval = '-'
+                duedate = '2999-12-31'
+                duesoon = False
+                overdue = False
+                maybe = False
 
-            if not line.strip():
-                continue
-            if line.strip() == '-':
-                continue
-            if ':\n' in line:
-                project = line.strip()[:-1]
-                continue
-            if '@done' in line:
-                done = True
-            if '@maybe' in line:
-                maybe = True
-            if '@repeat' in line:
-                repeat = True
-                repeatinterval = re.search(r'\@repeat\((.*?)\)', line).group(1)
-            if '@due' in line:
-                duedate = re.search(r'\@due\((.*?)\)', line).group(1)
-                duealert = datetime.date(parser.parse(duedate)) \
-                    - timedelta(**{DUEDELTA: DUEINTERVAL})
-                if duealert <= TODAY \
-                        <= datetime.date(parser.parse(duedate)):
-                    duesoon = True
-                if datetime.date(parser.parse(duedate)) < TODAY:
-                    overdue = True
-            if '@start' in line and '@prio' in line:
-                priotag = re.search(r'\@prio\((.*?)\)', line).group(1)
-                if priotag == 'high':
-                    priotag = 1
-                elif priotag == 'medium':
-                    priotag = 2
-                elif priotag == 'low':
-                    priotag = 3
-                starttag = re.search(r'\@start\((.*?)\)', line).group(1)
-                flaglist.append(Flagged(
-                    priotag,
-                    starttag,
-                    project,
-                    line.strip(),
-                    done,
-                    repeat,
-                    repeatinterval,
-                    duedate,
-                    duesoon,
-                    overdue,
-                    maybe
-                ))
-            else:
-                flaglist.append(Flagged(
-                    '-',
-                    '-',
-                    project,
-                    line.strip(),
-                    done,
-                    repeat,
-                    repeatinterval,
-                    duedate,
-                    duesoon,
-                    overdue,
-                    maybe
-                ))
-        except Exception, e:
-            errlist.append((line, e))
-    f.close()
-    if DEBUG:
-        printDebugOutput(flaglist, 'AfterRead:')
-    return flaglist
-
+                if not line.strip():
+                    continue
+                if line.strip() == '-':
+                    continue
+                if ':\n' in line:
+                    project = line.strip()[:-1]
+                    continue
+                if '@done' in line:
+                    done = True
+                if '@maybe' in line:
+                    maybe = True
+                if '@repeat' in line:
+                    repeat = True
+                    repeatinterval = re.search(r'\@repeat\((.*?)\)', line).group(1)
+                if '@due' in line:
+                    duedate = re.search(r'\@due\((.*?)\)', line).group(1)
+                    duealert = datetime.date(parser.parse(duedate)) \
+                        - timedelta(**{DUEDELTA: DUEINTERVAL})
+                    if duealert <= TODAY \
+                            <= datetime.date(parser.parse(duedate)):
+                        duesoon = True
+                    if datetime.date(parser.parse(duedate)) < TODAY:
+                        overdue = True
+                if '@start' in line and '@prio' in line:
+                    priotag = re.search(r'\@prio\((.*?)\)', line).group(1)
+                    if priotag == 'high':
+                        priotag = 1
+                    elif priotag == 'medium':
+                        priotag = 2
+                    elif priotag == 'low':
+                        priotag = 3
+                    starttag = re.search(r'\@start\((.*?)\)', line).group(1)
+                    flaglist.append(Flagged(
+                        priotag,
+                        starttag,
+                        project,
+                        line.strip(),
+                        done,
+                        repeat,
+                        repeatinterval,
+                        duedate,
+                        duesoon,
+                        overdue,
+                        maybe
+                    ))
+                else:
+                    flaglist.append(Flagged(
+                        '-',
+                        '-',
+                        project,
+                        line.strip(),
+                        done,
+                        repeat,
+                        repeatinterval,
+                        duedate,
+                        duesoon,
+                        overdue,
+                        maybe
+                    ))
+            except Exception, e:
+                errlist.append((line, e))
+        f.close()
+        if DEBUG:
+            printDebugOutput(flaglist, 'AfterRead')
+        return flaglist
+    except Exception, exc:
+        sys.exit("parsing input file failed; %s" % str(exc))
 
 # remove overdue and duesoon tags
 
 def removeTags(flaglist):
-    flaglistnew = []
-    for task in flaglist:
-        if '@overdue' in task.taskline or '@duesoon' in task.taskline:
-            taskstring = ''
-            cut_string = task.taskline.split(' ')
-            for i in range(0, len(cut_string)):
-                if '@overdue' in cut_string[i]:
-                    continue
-                if '@duesoon' in cut_string[i]:
-                    continue
-                taskstring = taskstring + cut_string[i] + ' '
-            flaglistnew.append(Flaggednew(
-                task.prio,
-                task.startdate,
-                task.project,
-                taskstring,
-                task.done,
-                task.repeat,
-                task.repeatinterval,
-                task.duedate,
-                task.duesoon,
-                task.overdue,
-                task.maybe
+    try:
+        flaglistnew = []
+        for task in flaglist:
+            if '@overdue' in task.taskline or '@duesoon' in task.taskline:
+                taskstring = ''
+                cut_string = task.taskline.split(' ')
+                for i in range(0, len(cut_string)):
+                    if '@overdue' in cut_string[i]:
+                        continue
+                    if '@duesoon' in cut_string[i]:
+                        continue
+                    taskstring = taskstring + cut_string[i] + ' '
+                flaglistnew.append(Flaggednew(
+                    task.prio,
+                    task.startdate,
+                    task.project,
+                    taskstring,
+                    task.done,
+                    task.repeat,
+                    task.repeatinterval,
+                    task.duedate,
+                    task.duesoon,
+                    task.overdue,
+                    task.maybe
+                ))
+            else:
+                flaglistnew.append(Flaggednew(
+                    task.prio,
+                    task.startdate,
+                    task.project,
+                    task.taskline,
+                    task.done,
+                    task.repeat,
+                    task.repeatinterval,
+                    task.duedate,
+                    task.duesoon,
+                    task.overdue,
+                    task.maybe,
+                ))
+
+        # move items from flaglistnew back to flaglist
+
+        flaglist = []
+        for tasknew in flaglistnew:
+            flaglist.append(Flagged(
+                tasknew.prio,
+                tasknew.startdate,
+                tasknew.project,
+                tasknew.taskline,
+                tasknew.done,
+                tasknew.repeat,
+                tasknew.repeatinterval,
+                tasknew.duedate,
+                tasknew.duesoon,
+                tasknew.overdue,
+                tasknew.maybe,
             ))
-        else:
-            flaglistnew.append(Flaggednew(
-                task.prio,
-                task.startdate,
-                task.project,
-                task.taskline,
-                task.done,
-                task.repeat,
-                task.repeatinterval,
-                task.duedate,
-                task.duesoon,
-                task.overdue,
-                task.maybe,
-            ))
-
-    # move items from flaglistnew back to flaglist
-
-    flaglist = []
-    for tasknew in flaglistnew:
-        flaglist.append(Flagged(
-            tasknew.prio,
-            tasknew.startdate,
-            tasknew.project,
-            tasknew.taskline,
-            tasknew.done,
-            tasknew.repeat,
-            tasknew.repeatinterval,
-            tasknew.duedate,
-            tasknew.duesoon,
-            tasknew.overdue,
-            tasknew.maybe,
-        ))
-    return flaglist
-
+        return flaglist
+    except Exception, exc:
+        sys.exit("removing tags failed; %s" % str(exc))
 
 # set overdue and duesoon tags
-
 def setTags(flaglist):
-    flaglistnew = []
-    for task in flaglist:
-        if task.overdue:
-            flaglistnew.append(Flaggednew(
-                task.prio,
-                task.startdate,
-                task.project,
-                task.taskline + ' @overdue',
-                task.done,
-                task.repeat,
-                task.repeatinterval,
-                task.duedate,
-                task.duesoon,
-                task.overdue,
-                task.maybe,
-            ))
-        elif task.duesoon:
-            flaglistnew.append(Flaggednew(
-                task.prio,
-                task.startdate,
-                task.project,
-                task.taskline + ' @duesoon',
-                task.done,
-                task.repeat,
-                task.repeatinterval,
-                task.duedate,
-                task.duesoon,
-                task.overdue,
-                task.maybe,
-            ))
-        else:
-            flaglistnew.append(Flaggednew(
-                task.prio,
-                task.startdate,
-                task.project,
-                task.taskline,
-                task.done,
-                task.repeat,
-                task.repeatinterval,
-                task.duedate,
-                task.duesoon,
-                task.overdue,
-                task.maybe,
-            ))
+    try:
+        flaglistnew = []
+        for task in flaglist:
+            if task.overdue:
+                flaglistnew.append(Flaggednew(
+                    task.prio,
+                    task.startdate,
+                    task.project,
+                    task.taskline + ' @overdue',
+                    task.done,
+                    task.repeat,
+                    task.repeatinterval,
+                    task.duedate,
+                    task.duesoon,
+                    task.overdue,
+                    task.maybe,
+                ))
+            elif task.duesoon:
+                flaglistnew.append(Flaggednew(
+                    task.prio,
+                    task.startdate,
+                    task.project,
+                    task.taskline + ' @duesoon',
+                    task.done,
+                    task.repeat,
+                    task.repeatinterval,
+                    task.duedate,
+                    task.duesoon,
+                    task.overdue,
+                    task.maybe,
+                ))
+            else:
+                flaglistnew.append(Flaggednew(
+                    task.prio,
+                    task.startdate,
+                    task.project,
+                    task.taskline,
+                    task.done,
+                    task.repeat,
+                    task.repeatinterval,
+                    task.duedate,
+                    task.duesoon,
+                    task.overdue,
+                    task.maybe,
+                ))
 
-    # move items from flaglistnew back to flaglist
+        # move items from flaglistnew back to flaglist
 
-    flaglist = []
-    for tasknew in flaglistnew:
-        flaglist.append(Flagged(
-            tasknew.prio,
-            tasknew.startdate,
-            tasknew.project,
-            tasknew.taskline,
-            tasknew.done,
-            tasknew.repeat,
-            tasknew.repeatinterval,
-            tasknew.duedate,
-            tasknew.duesoon,
-            tasknew.overdue,
-            tasknew.maybe,
-        ))
-    return flaglist
+        flaglist = []
+        for tasknew in flaglistnew:
+            flaglist.append(Flagged(
+                tasknew.prio,
+                tasknew.startdate,
+                tasknew.project,
+                tasknew.taskline,
+                tasknew.done,
+                tasknew.repeat,
+                tasknew.repeatinterval,
+                tasknew.duedate,
+                tasknew.duesoon,
+                tasknew.overdue,
+                tasknew.maybe,
+            ))
+        return flaglist
+    except Exception, exc:
+        sys.exit("setting overdue or duesoon tags failed; %s" % str(exc))
 
 
 # check @done and move to archive file
-
 def archiveDone(flaglist):
     flaglistnew = []
     flaglistarchive = []
+    try:
+        for task in flaglist:
+            if task.done:
+                if DEBUG:
+                    printDebugOutput(flaglist, 'BeforeDone')
 
-    for task in flaglist:
-        if task.done:
-            if DEBUG:
-                printDebugOutput(flaglist, 'BeforeDone:')
-
-            taskstring = ''
-            cut_string = task.taskline.split(' ')
-            for i in range(0, len(cut_string)):
-                if '@done' in cut_string[i]:
-                    continue
-                taskstring = taskstring + cut_string[i] + ' '
-            newtask = taskstring + ' @project(' + task.project \
-                + ') @done(' + str(DAYBEFORE) + ')'
-            flaglistarchive.append(Flaggedarchive(
-                task.prio,
-                task.startdate,
-                'Archive',
-                newtask,
-                task.done,
-                task.repeat,
-                task.repeatinterval,
-                task.duedate,
-                task.duesoon,
-                task.overdue,
-                task.maybe,
+                taskstring = ''
+                cut_string = task.taskline.split(' ')
+                for i in range(0, len(cut_string)):
+                    if '@done' in cut_string[i]:
+                        continue
+                    taskstring = taskstring + cut_string[i] + ' '
+                newtask = taskstring + ' @project(' + task.project \
+                    + ') @done(' + str(DAYBEFORE) + ')'
+                flaglistarchive.append(Flaggedarchive(
+                    task.prio,
+                    task.startdate,
+                    'Archive',
+                    newtask,
+                    task.done,
+                    task.repeat,
+                    task.repeatinterval,
+                    task.duedate,
+                    task.duesoon,
+                    task.overdue,
+                    task.maybe,
+                ))
+            else:
+                flaglistnew.append(Flaggednew(
+                    task.prio,
+                    task.startdate,
+                    task.project,
+                    task.taskline,
+                    task.done,
+                    task.repeat,
+                    task.repeatinterval,
+                    task.duedate,
+                    task.duesoon,
+                    task.overdue,
+                    task.maybe,
+                ))
+        flaglist = []
+        for tasknew in flaglistnew:
+            flaglist.append(Flagged(
+                tasknew.prio,
+                tasknew.startdate,
+                tasknew.project,
+                tasknew.taskline,
+                tasknew.done,
+                tasknew.repeat,
+                tasknew.repeatinterval,
+                tasknew.duedate,
+                tasknew.duesoon,
+                tasknew.overdue,
+                tasknew.maybe,
             ))
-        else:
-            flaglistnew.append(Flaggednew(
-                task.prio,
-                task.startdate,
-                task.project,
-                task.taskline,
-                task.done,
-                task.repeat,
-                task.repeatinterval,
-                task.duedate,
-                task.duesoon,
-                task.overdue,
-                task.maybe,
-            ))
-    flaglist = []
-    for tasknew in flaglistnew:
-        flaglist.append(Flagged(
-            tasknew.prio,
-            tasknew.startdate,
-            tasknew.project,
-            tasknew.taskline,
-            tasknew.done,
-            tasknew.repeat,
-            tasknew.repeatinterval,
-            tasknew.duedate,
-            tasknew.duesoon,
-            tasknew.overdue,
-            tasknew.maybe,
-        ))
-    return (flaglist, flaglistarchive)
+        return (flaglist, flaglistarchive)
+    except Exception, exc:
+        sys.exit("archiving of @done failed; %s" % str(exc))
 
 
 # check @maybe and move to archive file (maybe)
@@ -436,7 +447,7 @@ def archiveMaybe(flaglist):
     for task in flaglist:
         if task.maybe:
             if DEBUG:
-                printDebugOutput(flaglist, 'Maybe:')
+                printDebugOutput(flaglist, 'Maybe')
 
             taskstring = ''
             cut_string = task.taskline.split(' ')
@@ -645,20 +656,20 @@ def setRepeat(flaglist):
 
     if DEBUG:
         if DEBUG:
-            printDebugOutput(flaglist, 'AfterRepeat:')
+            printDebugOutput(flaglist, 'AfterRepeat')
     return flaglist
 
 
 def sortList(flaglist):
-
-    # sort in following order: project (asc), prio (asc), date (desc)
-
-    flaglist = sorted(flaglist,
-        key=itemgetter(Flagged._fields.index('startdate')), reverse=True)
-    flaglist = sorted(flaglist,
-        key=itemgetter(Flagged._fields.index('project'),Flagged._fields.index('prio')))
-    return flaglist
-
+    try:
+        # sort in following order: project (asc), prio (asc), date (desc)
+        flaglist = sorted(flaglist,
+            key=itemgetter(Flagged._fields.index('startdate')), reverse=True)
+        flaglist = sorted(flaglist,
+            key=itemgetter(Flagged._fields.index('project'),Flagged._fields.index('prio')))
+        return flaglist
+    except Exception, exc:
+        sys.exit("sorting list failed; %s" % str(exc))
 
 def printOutFile(flaglist, flaglistarchive, flaglistmaybe, tpfile):
     if DEBUG:
@@ -698,69 +709,73 @@ def printOutFile(flaglist, flaglistarchive, flaglistmaybe, tpfile):
             if task.project == 'Maybe':
                 print('\t' + str(task.taskline))
     else:
+        try:
+            shutil.move(tpfile, tpfile[:-8] + 'backup/todo_' + str(TODAY) + '.txt')
+            appendfilearchive = open(tpfile[:-8] + 'archive.txt', 'a')
+            appendfilemaybe = open(tpfile[:-8] + 'maybe.txt', 'a')
 
-        shutil.move(tpfile, tpfile[:-8] + 'backup/todo_' + str(TODAY) + '.txt')
-        appendfilearchive = open(tpfile[:-8] + 'archive.txt', 'a')
-        appendfilemaybe = open(tpfile[:-8] + 'maybe.txt', 'a')
+            outfile = open(tpfile, 'w')
 
-        outfile = open(tpfile, 'w')
+            print('work:', file=outfile)
+            for task in flaglist:
+                if task.project == 'work':
+                    print('\t' + str(task.taskline), file=outfile)
 
-        print('work:', file=outfile)
-        for task in flaglist:
-            if task.project == 'work':
-                print('\t' + str(task.taskline), file=outfile)
+            print('\nhome:', file=outfile)
 
-        print('\nhome:', file=outfile)
+            for task in flaglist:
+                if task.project == 'home':
+                    print('\t' + str(task.taskline), file=outfile)
 
-        for task in flaglist:
-            if task.project == 'home':
-                print('\t' + str(task.taskline), file=outfile)
+            print('\nRepeat:', file=outfile)
 
-        print('\nRepeat:', file=outfile)
+            for task in flaglist:
+                if task.project == 'Repeat':
+                    print('\t' + str(task.taskline), file=outfile)
 
-        for task in flaglist:
-            if task.project == 'Repeat':
-                print('\t' + str(task.taskline), file=outfile)
+            print('\nArchive:', file=outfile)
 
-        print('\nArchive:', file=outfile)
+            print('\nINBOX:', file=outfile)
 
-        print('\nINBOX:', file=outfile)
+            for task in flaglist:
+                if task.project == 'INBOX':
+                    print('\t' + str(task.taskline), file=outfile)
 
-        for task in flaglist:
-            if task.project == 'INBOX':
-                print('\t' + str(task.taskline), file=outfile)
+            print('\n', file=outfile)
 
-        print('\n', file=outfile)
+            # append all done-files to archive-file
+            for task in flaglistarchive:
+                if task.project == 'Archive':
+                    print('\t' + str(task.taskline), file=appendfilearchive)
 
-        # append all done-files to archive-file
-        for task in flaglistarchive:
-            if task.project == 'Archive':
-                print('\t' + str(task.taskline), file=appendfilearchive)
+            ## append all maybe-files to maybe.txt
+            for task in flaglistmaybe:
+                if task.project == 'Maybe':
+                    print('\t' + str(task.taskline), file=appendfilemaybe)
 
-        ## append all maybe-files to maybe.txt
-        for task in flaglistmaybe:
-            if task.project == 'Maybe':
-                print('\t' + str(task.taskline), file=appendfilemaybe)
-
+        except Exception, exc:
+            sys.exit("creating output failed; %s" % str(exc))
 
 def createPushover(flaglist, destination):
-    mytxt = 'Open tasks with prio high or overdue:\n'
-    for task in flaglist:
-        if task.project == destination and \
-            (task.overdue is True or task.prio == 1) and \
-            task.startdate <= str(TODAY):
-                taskstring = ''
-                cut_string = task.taskline.split(' ')
-                for i in range(0, len(cut_string)):
-                    if '@start' in cut_string[i]:
-                        continue
-                    taskstring = taskstring + cut_string[i] + ' '
-                mytxt = mytxt + taskstring.strip() + '\n'
-    # pushover limits messages sizes to 512 characters
-    if len(mytxt) > 512:
-            mytxt = mytxt[:512]
-    sendPushover(mytxt)
+    try:
+        mytxt = 'Open tasks with prio high or overdue:\n'
+        for task in flaglist:
+            if task.project == destination and \
+                (task.overdue is True or task.prio == 1) and task.startdate <= str(TODAY):
+                    taskstring = ''
+                    cut_string = task.taskline.split(' ')
+                    for i in range(0, len(cut_string)):
+                        if '@start' in cut_string[i]:
+                            continue
+                        taskstring = taskstring + cut_string[i] + ' '
+                    mytxt = mytxt + taskstring.strip() + '\n'
+        # pushover limits messages sizes to 512 characters
+        if len(mytxt) > 512:
+                mytxt = mytxt[:512]
+        sendPushover(mytxt)
 
+    except Exception, exc:
+        sys.exit("creating pushover message failed; %s" % str(exc))
 
 def sendPushover(content):
     try:
@@ -806,103 +821,108 @@ def sendMail(content, subject, sender, receiver, text_subtype, encrypted):
 
 def createMail(flaglist, destination, encrypted):
     if SENDMAIL:
-        source = ConfigSectionMap('mail')['sourceemail']
-        desthome = ConfigSectionMap('mail')['desthomeemail']
-        destwork = ConfigSectionMap('mail')['destworkemail']
+        try:
+            source = ConfigSectionMap('mail')['sourceemail']
+            desthome = ConfigSectionMap('mail')['desthomeemail']
+            destwork = ConfigSectionMap('mail')['destworkemail']
 
-        mytxt = '<html><head><title>Tasks for Today</title></head><body>'
+            mytxt = '<html><head><title>Tasks for Today</title></head><body>'
 
-        mytxt = mytxt + '<h1>Tasks for Today</h1><p>'
-        mytxtasc = '# Tasks for Today #\n'
-        mytxt = mytxt + '<h2>Overdue tasks</h2><p>'
-        mytxtasc = mytxtasc + '\n## Overdue tasks ##\n'
-        # Overdue
+            mytxt = mytxt + '<h1>Tasks for Today</h1><p>'
+            mytxtasc = '# Tasks for Today #\n'
+            mytxt = mytxt + '<h2>Overdue tasks</h2><p>'
+            mytxtasc = mytxtasc + '\n## Overdue tasks ##\n'
+            # Overdue
 
-        for task in flaglist:
-            if task.overdue is True and task.project == destination:
-                taskstring = ''
-                cut_string = task.taskline.split(' ')
-                for i in range(0, len(cut_string)):
-                    if '@' in cut_string[i]:
-                        continue
-                    taskstring = taskstring + cut_string[i] + ' '
-                taskstring = taskstring + '@due(' + task.duedate + ')'
-                mytxt = mytxt + '<FONT COLOR="#ff0033">' + taskstring.strip() + '</FONT>' + '<br/>'
-                mytxtasc = mytxtasc + taskstring.strip() + '\n'
-
-        mytxt = mytxt + '<h2>Due soon tasks</h2>'
-        mytxtasc = mytxtasc + '\n## Due soon tasks ##\n'
-
-        # Due soon
-
-        for task in flaglist:
-            if task.project == destination and task.duesoon is True and task.done is False:
-                taskstring = ''
-                cut_string = task.taskline.split(' ')
-                for i in range(0, len(cut_string)):
-                    if '@' in cut_string[i]:
-                        continue
-                    taskstring = taskstring + cut_string[i] + ' '
-                taskstring = taskstring + '@due(' + task.duedate + ')'
-                mytxt = mytxt + taskstring.strip() + '<br/>'
-                mytxtasc = mytxtasc + taskstring.strip() + '\n'
-
-        mytxt = mytxt + '<h2>High priority tasks</h2><p>'
-        mytxtasc = mytxtasc + '\n## High priority tasks ##\n'
-
-        # All other high prio tasks
-
-        for task in flaglist:
-            if task.project == destination and task.prio == 1 \
-                    and task.startdate <= str(TODAY) \
-                    and (task.overdue is not True or task.duesoon is not True) \
-                    and task.done is False:
-                taskstring = ''
-                cut_string = task.taskline.split(' ')
-                for i in range(0, len(cut_string)):
-                    if '@start' in cut_string[i]:
-                        continue
-                    if '@prio' in cut_string[i]:
-                        continue
-                    taskstring = taskstring + cut_string[i] + ' '
-                if task.duedate != '2999-12-31':
+            for task in flaglist:
+                if task.overdue is True and task.project == destination:
+                    taskstring = ''
+                    cut_string = task.taskline.split(' ')
+                    for i in range(0, len(cut_string)):
+                        if '@' in cut_string[i]:
+                            continue
+                        taskstring = taskstring + cut_string[i] + ' '
                     taskstring = taskstring + '@due(' + task.duedate + ')'
-                mytxt = mytxt + '<FONT COLOR="#ff0033">' + taskstring.strip() + '</FONT>' + '<br/>'
-                mytxtasc = mytxtasc + taskstring.strip() + '\n'
+                    mytxt = mytxt + '<FONT COLOR="#ff0033">' + taskstring.strip()\
+                        + '</FONT>' + '<br/>'
+                    mytxtasc = mytxtasc + taskstring.strip() + '\n'
 
-        mytxt = mytxt + '<h2>Medium priority tasks</h2><p>'
-        mytxtasc = mytxtasc + '\n## Medium priority tasks ##\n'
+            mytxt = mytxt + '<h2>Due soon tasks</h2>'
+            mytxtasc = mytxtasc + '\n## Due soon tasks ##\n'
 
-        # All other medium prio tasks
+            # Due soon
 
-        for task in flaglist:
-            if task.project == destination and \
-                    task.prio == 2 and task.startdate <= str(TODAY) \
-                    and (task.overdue is not True or task.duesoon is not True) \
-                    and task.done is False:
-                taskstring = ''
-                cut_string = task.taskline.split(' ')
-                for i in range(0, len(cut_string)):
-                    if '@start' in cut_string[i]:
-                        continue
-                    if '@prio' in cut_string[i]:
-                        continue
-                    taskstring = taskstring + cut_string[i] + ' '
-                if task.duedate != '2999-12-31':
-                    taskstring = taskstring + '@due(' + task.duedate \
-                        + ')'
-                mytxt = mytxt + taskstring.strip() + '<br/>'
-                mytxtasc = mytxtasc + taskstring.strip() + '\n'
+            for task in flaglist:
+                if task.project == destination and task.duesoon is True and task.done is False:
+                    taskstring = ''
+                    cut_string = task.taskline.split(' ')
+                    for i in range(0, len(cut_string)):
+                        if '@' in cut_string[i]:
+                            continue
+                        taskstring = taskstring + cut_string[i] + ' '
+                    taskstring = taskstring + '@due(' + task.duedate + ')'
+                    mytxt = mytxt + taskstring.strip() + '<br/>'
+                    mytxtasc = mytxtasc + taskstring.strip() + '\n'
 
-        mytxt = mytxt + '</table></body></html>'
+            mytxt = mytxt + '<h2>High priority tasks</h2><p>'
+            mytxtasc = mytxtasc + '\n## High priority tasks ##\n'
 
-        if destination == 'home':
-            sendMail(mytxt, 'Taskpaper daily overview', source, desthome, 'html', False)
-        elif destination == 'work':
-            sendMail(mytxtasc, 'Taskpaper daily overview', source, destwork, 'text', True)
-        else:
-            print("wrong destination, aborting")
-            return -1
+            # All other high prio tasks
+
+            for task in flaglist:
+                if task.project == destination and task.prio == 1 \
+                        and task.startdate <= str(TODAY) \
+                        and (task.overdue is not True or task.duesoon is not True) \
+                        and task.done is False:
+                    taskstring = ''
+                    cut_string = task.taskline.split(' ')
+                    for i in range(0, len(cut_string)):
+                        if '@start' in cut_string[i]:
+                            continue
+                        if '@prio' in cut_string[i]:
+                            continue
+                        taskstring = taskstring + cut_string[i] + ' '
+                    if task.duedate != '2999-12-31':
+                        taskstring = taskstring + '@due(' + task.duedate + ')'
+                    mytxt = mytxt + '<FONT COLOR="#ff0033">' + taskstring.strip()\
+                        + '</FONT>' + '<br/>'
+                    mytxtasc = mytxtasc + taskstring.strip() + '\n'
+
+            mytxt = mytxt + '<h2>Medium priority tasks</h2><p>'
+            mytxtasc = mytxtasc + '\n## Medium priority tasks ##\n'
+
+            # All other medium prio tasks
+
+            # for task in flaglist:
+            #     if task.project == destination and \
+            #             task.prio == 2 and task.startdate <= str(TODAY) \
+            #             and (task.overdue is not True or task.duesoon is not True) \
+            #             and task.done is False:
+            #         taskstring = ''
+            #         cut_string = task.taskline.split(' ')
+            #         for i in range(0, len(cut_string)):
+            #             if '@start' in cut_string[i]:
+            #                 continue
+            #             if '@prio' in cut_string[i]:
+            #                 continue
+            #             taskstring = taskstring + cut_string[i] + ' '
+            #         if task.duedate != '2999-12-31':
+            #             taskstring = taskstring + '@due(' + task.duedate \
+            #                 + ')'
+            #         mytxt = mytxt + taskstring.strip() + '<br/>'
+            #         mytxtasc = mytxtasc + taskstring.strip() + '\n'
+
+            mytxt = mytxt + '</table></body></html>'
+
+            if destination == 'home':
+                sendMail(mytxt, 'Taskpaper daily overview', source, desthome, 'html', False)
+            elif destination == 'work':
+                sendMail(mytxtasc, 'Taskpaper daily overview', source, destwork, 'text', True)
+            else:
+                raise "wrong destination"
+
+        except Exception, exc:
+            sys.exit("creating email failed; %s" % str(exc))
 
 
 def main():
