@@ -83,46 +83,7 @@ if Config.getboolean('mail', 'encryptmail') is True:
 ....overdue: boolean; true if today is after duedate"""
 
 
-Flagged = namedtuple('Flagged', [
-    'prio',
-    'startdate',
-    'project',
-    'taskline',
-    'done',
-    'repeat',
-    'repeatinterval',
-    'duedate',
-    'duesoon',
-    'overdue',
-    'maybe',
-])
-Flaggednew = namedtuple('Flaggednew', [
-    'prio',
-    'startdate',
-    'project',
-    'taskline',
-    'done',
-    'repeat',
-    'repeatinterval',
-    'duedate',
-    'duesoon',
-    'overdue',
-    'maybe',
-])
-Flaggedarchive = namedtuple('Flaggedarchive', [
-    'prio',
-    'startdate',
-    'project',
-    'taskline',
-    'done',
-    'repeat',
-    'repeatinterval',
-    'duedate',
-    'duesoon',
-    'overdue',
-    'maybe',
-])
-Flaggedmaybe = namedtuple('Flaggedmaybe', [
+Flagged = Flaggednew = Flaggedarchive = Flaggedmaybe = namedtuple('Flagged', [
     'prio',
     'startdate',
     'project',
@@ -147,27 +108,6 @@ def printDebugOutput(flaglist, prepend):
             task.done, task.repeat, task.repeatinterval,
             task.duesoon, task.overdue, task.maybe))
 
-
-def copyNamedTuple(flaglistnew):
-    try:
-        flaglist = []
-        for tasknew in flaglistnew:
-            flaglist.append(Flagged(
-                tasknew.prio,
-                tasknew.startdate,
-                tasknew.project,
-                tasknew.taskline,
-                tasknew.done,
-                tasknew.repeat,
-                tasknew.repeatinterval,
-                tasknew.duedate,
-                tasknew.duesoon,
-                tasknew.overdue,
-                tasknew.maybe,
-            ))
-        return flaglist
-    except Exception, exc:
-        sys.exit("copyNamedTuple failed; %s" % str(exc))
 
 def parseInput(tpfile):
     try:
@@ -299,7 +239,7 @@ def removeTags(flaglist):
                 ))
 
         # move items from flaglistnew back to flaglist
-        flaglist = copyNamedTuple(flaglistnew)
+        flaglist = flaglistnew
         return flaglist
     except Exception, exc:
         sys.exit("removing tags failed; %s" % str(exc))
@@ -354,7 +294,7 @@ def setTags(flaglist):
                 ))
 
         # move items from flaglistnew back to flaglist
-        flaglist = copyNamedTuple(flaglistnew)
+        flaglist = flaglistnew
         return flaglist
     except Exception, exc:
         sys.exit("setting overdue or duesoon tags failed; %s" % str(exc))
@@ -405,7 +345,7 @@ def archiveDone(flaglist):
                     task.overdue,
                     task.maybe,
                 ))
-        flaglist = copyNamedTuple(flaglistnew)
+        flaglist = flaglistnew
         return (flaglist, flaglistarchive)
     except Exception, exc:
         sys.exit("archiving of @done failed; %s" % str(exc))
@@ -463,7 +403,7 @@ def archiveMaybe(flaglist):
                 task.overdue,
                 task.maybe,
             ))
-    flaglist = copyNamedTuple(flaglistnew)
+    flaglist = flaglistnew
     return (flaglist, flaglistmaybe)
 
 
@@ -593,7 +533,7 @@ def setRepeat(flaglist):
                 task.overdue,
                 task.maybe,
             ))
-    flaglist = copyNamedTuple(flaglistnew)
+    flaglist = flaglistnew
 
     if DEBUG:
         if DEBUG:
