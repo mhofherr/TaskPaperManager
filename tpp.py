@@ -142,17 +142,32 @@ DAYBEFORE = TODAY - timedelta(days=1)
 
 def printDebugOutput(flaglist, prepend):
     for task in flaglist:
-        #print(prepend + str(task.prio) + ' | ' + str(task.startdate)
-        #      + ' | ' + str(task.project) + ' | '
-        #      + str(task.taskline) + ' | ' + str(task.done) + ' | '
-        #      + str(task.repeat) + ' | ' + str(task.repeatinterval)
-        #      + ' | ' + str(task.duesoon) + ' | '
-        #      + str(task.overdue) + ' | ' + str(task.maybe))
-        print("%s: %s | %s | %s |  %s | %s | %s | %s | %s | %s | %s" %\
-            (prepend, task.prio, task.startdate, task.project, task.taskline,\
+        print("%s: %s | %s | %s |  %s | %s | %s | %s | %s | %s | %s" %
+            (prepend, task.prio, task.startdate, task.project, task.taskline,
             task.done, task.repeat, task.repeatinterval,
             task.duesoon, task.overdue, task.maybe))
 
+
+def copyNamedTuple(flaglistnew):
+    try:
+        flaglist = []
+        for tasknew in flaglistnew:
+            flaglist.append(Flagged(
+                tasknew.prio,
+                tasknew.startdate,
+                tasknew.project,
+                tasknew.taskline,
+                tasknew.done,
+                tasknew.repeat,
+                tasknew.repeatinterval,
+                tasknew.duedate,
+                tasknew.duesoon,
+                tasknew.overdue,
+                tasknew.maybe,
+            ))
+        return flaglist
+    except Exception, exc:
+        sys.exit("copyNamedTuple failed; %s" % str(exc))
 
 def parseInput(tpfile):
     try:
@@ -284,25 +299,11 @@ def removeTags(flaglist):
                 ))
 
         # move items from flaglistnew back to flaglist
-
-        flaglist = []
-        for tasknew in flaglistnew:
-            flaglist.append(Flagged(
-                tasknew.prio,
-                tasknew.startdate,
-                tasknew.project,
-                tasknew.taskline,
-                tasknew.done,
-                tasknew.repeat,
-                tasknew.repeatinterval,
-                tasknew.duedate,
-                tasknew.duesoon,
-                tasknew.overdue,
-                tasknew.maybe,
-            ))
+        flaglist = copyNamedTuple(flaglistnew)
         return flaglist
     except Exception, exc:
         sys.exit("removing tags failed; %s" % str(exc))
+
 
 # set overdue and duesoon tags
 def setTags(flaglist):
@@ -353,22 +354,7 @@ def setTags(flaglist):
                 ))
 
         # move items from flaglistnew back to flaglist
-
-        flaglist = []
-        for tasknew in flaglistnew:
-            flaglist.append(Flagged(
-                tasknew.prio,
-                tasknew.startdate,
-                tasknew.project,
-                tasknew.taskline,
-                tasknew.done,
-                tasknew.repeat,
-                tasknew.repeatinterval,
-                tasknew.duedate,
-                tasknew.duesoon,
-                tasknew.overdue,
-                tasknew.maybe,
-            ))
+        flaglist = copyNamedTuple(flaglistnew)
         return flaglist
     except Exception, exc:
         sys.exit("setting overdue or duesoon tags failed; %s" % str(exc))
@@ -419,21 +405,7 @@ def archiveDone(flaglist):
                     task.overdue,
                     task.maybe,
                 ))
-        flaglist = []
-        for tasknew in flaglistnew:
-            flaglist.append(Flagged(
-                tasknew.prio,
-                tasknew.startdate,
-                tasknew.project,
-                tasknew.taskline,
-                tasknew.done,
-                tasknew.repeat,
-                tasknew.repeatinterval,
-                tasknew.duedate,
-                tasknew.duesoon,
-                tasknew.overdue,
-                tasknew.maybe,
-            ))
+        flaglist = copyNamedTuple(flaglistnew)
         return (flaglist, flaglistarchive)
     except Exception, exc:
         sys.exit("archiving of @done failed; %s" % str(exc))
@@ -491,21 +463,7 @@ def archiveMaybe(flaglist):
                 task.overdue,
                 task.maybe,
             ))
-    flaglist = []
-    for tasknew in flaglistnew:
-        flaglist.append(Flagged(
-            tasknew.prio,
-            tasknew.startdate,
-            tasknew.project,
-            tasknew.taskline,
-            tasknew.done,
-            tasknew.repeat,
-            tasknew.repeatinterval,
-            tasknew.duedate,
-            tasknew.duesoon,
-            tasknew.overdue,
-            tasknew.maybe,
-        ))
+    flaglist = copyNamedTuple(flaglistnew)
     return (flaglist, flaglistmaybe)
 
 
@@ -635,24 +593,7 @@ def setRepeat(flaglist):
                 task.overdue,
                 task.maybe,
             ))
-
-    # move items from flaglistnew back to flaglist
-
-    flaglist = []
-    for tasknew in flaglistnew:
-        flaglist.append(Flagged(
-            tasknew.prio,
-            tasknew.startdate,
-            tasknew.project,
-            tasknew.taskline,
-            tasknew.done,
-            tasknew.repeat,
-            tasknew.repeatinterval,
-            tasknew.duedate,
-            tasknew.duesoon,
-            tasknew.overdue,
-            tasknew.maybe,
-        ))
+    flaglist = copyNamedTuple(flaglistnew)
 
     if DEBUG:
         if DEBUG:
@@ -887,31 +828,6 @@ def createMail(flaglist, destination, encrypted):
                     mytxt = mytxt + '<FONT COLOR="#ff0033">' + taskstring.strip()\
                         + '</FONT>' + '<br/>'
                     mytxtasc = mytxtasc + taskstring.strip() + '\n'
-
-            mytxt = mytxt + '<h2>Medium priority tasks</h2><p>'
-            mytxtasc = mytxtasc + '\n## Medium priority tasks ##\n'
-
-            # All other medium prio tasks
-
-            # for task in flaglist:
-            #     if task.project == destination and \
-            #             task.prio == 2 and task.startdate <= str(TODAY) \
-            #             and (task.overdue is not True or task.duesoon is not True) \
-            #             and task.done is False:
-            #         taskstring = ''
-            #         cut_string = task.taskline.split(' ')
-            #         for i in range(0, len(cut_string)):
-            #             if '@start' in cut_string[i]:
-            #                 continue
-            #             if '@prio' in cut_string[i]:
-            #                 continue
-            #             taskstring = taskstring + cut_string[i] + ' '
-            #         if task.duedate != '2999-12-31':
-            #             taskstring = taskstring + '@due(' + task.duedate \
-            #                 + ')'
-            #         mytxt = mytxt + taskstring.strip() + '<br/>'
-            #         mytxtasc = mytxtasc + taskstring.strip() + '\n'
-
             mytxt = mytxt + '</table></body></html>'
 
             if destination == 'home':
