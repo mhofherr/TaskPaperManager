@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/local/bin/python
 # -*- coding: utf-8 -*-
 
 #
@@ -793,8 +793,9 @@ def main():
     printOutFile(flaglist, flaglistarchive, flaglistmaybe, tpfile)
     if SENDMAIL is True:
         createMail(flaglist, 'home', False)
-        createMail(flaglist, 'work', True)
+        #createMail(flaglist, 'work', True)
     if PUSHOVER is True:
         createPushover(flaglist, 'home')
 
-main()
+if __name__ == '__main__':
+    sys.exit(main())
