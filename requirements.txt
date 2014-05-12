@@ -1,0 +1,4 @@
+python-dateutil==2.2
+python-gnupg==0.3.6
+six==1.6.1
+wsgiref==0.1.2
