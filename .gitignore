@@ -1,2 +1,5 @@
 tpp.cfg
 test/__pycache__
+__pycache__
+TaskPaperParser.egg-info
+.coverage
