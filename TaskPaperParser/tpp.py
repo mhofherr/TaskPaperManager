@@ -20,6 +20,7 @@ import ConfigParser
 import shutil
 import sys
 import re
+import os
 
 
 def ConfigSectionMap(section):
@@ -37,12 +38,10 @@ def ConfigSectionMap(section):
 
 
 # tpp.cfg config file required - for details see README.md
-
+# set correct path if not in same directory as script
+dn = os.path.dirname(os.path.realpath(__file__))
 Config = ConfigParser.ConfigParser()
-
-# set correct path if not in local directory
-Config.read('tpp.cfg')
-
+Config.read(dn + '/tpp.cfg')
 
 DEBUG = Config.getboolean('tpp', 'debug')
 SENDMAIL = Config.getboolean('mail', 'sendmail')
