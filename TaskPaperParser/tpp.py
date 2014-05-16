@@ -8,7 +8,7 @@
 #
 # License: GPL v3 (for details see LICENSE file)
 
-from __future__ import print_function
+from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 from datetime import datetime, timedelta
 from collections import namedtuple
@@ -23,48 +23,77 @@ import re
 import os
 
 
-def ConfigSectionMap(section):
+# remove elements from a taskpaper string
+def removeTaskParts(instring, removelist):
+    outstring = ''
+    cut_string = instring.split(' ')
+    cut_removelist = removelist.split(' ')
+    for i in range(0, len(cut_string)):
+        for j in range(0, len(cut_removelist)):
+            if cut_removelist[j] in cut_string[i]:
+                break
+        else:
+            outstring = '{0}{1} '.format(outstring, cut_string[i])
+    return outstring
+
+
+def parseConfig():
+    # sets the config parameters as global variables
+    # tpp.cfg config file required - for details see README.md
+    # set correct path if not in same directory as script
+    dn = os.path.dirname(os.path.realpath(__file__))
+    Config = ConfigParser.ConfigParser()
+    Config.read('{0}/tpp.cfg'.format(dn))
+    global DEBUG
+    global SENDMAIL
+    global SMTPSERVER
+    global SMTPPORT
+    global SMTPUSER
+    global SMTPPASSWORD
+    global PUSHOVER
+    global DUEDELTA
+    global DUEINTERVAL
+    global ENCRYPTMAIL
+    global GNUPGHOME
+    global PUSHOVERTOKEN
+    global PUSHOVERUSER
+    global TARGETFINGERPRINT
+    global SOURCEEMAIL
+    global DESTHOMEEMAIL
+    global DESTWORKEMAIL
+
+    DEBUG = Config.getboolean('tpp', 'debug')
+    SENDMAIL = Config.getboolean('mail', 'sendmail')
+    SMTPSERVER = ConfigSectionMap(Config, 'mail')['smtpserver']
+    SMTPPORT = Config.getint('mail', 'smtpport')
+    SMTPUSER = ConfigSectionMap(Config, 'mail')['smtpuser']
+    SMTPPASSWORD = ConfigSectionMap(Config, 'mail')['smtppassword']
+    PUSHOVER = Config.getboolean('pushover', 'pushover')
+    DUEDELTA = ConfigSectionMap(Config, 'tpp')['duedelta']
+    DUEINTERVAL = Config.getint('tpp', 'dueinterval')
+    ENCRYPTMAIL = Config.getboolean('mail', 'encryptmail')
+    GNUPGHOME = ConfigSectionMap(Config, 'mail')['gnupghome']
+    PUSHOVERTOKEN = ConfigSectionMap(Config, 'pushover')['pushovertoken']
+    PUSHOVERUSER = ConfigSectionMap(Config, 'pushover')['pushoveruser']
+    TARGETFINGERPRINT = ConfigSectionMap(Config, 'mail')['targetfingerprint']
+    SOURCEEMAIL = ConfigSectionMap(Config, 'mail')['sourceemail']
+    DESTHOMEEMAIL = ConfigSectionMap(Config, 'mail')['desthomeemail']
+    DESTWORKEMAIL = ConfigSectionMap(Config, 'mail')['destworkemail']
+
+
+def ConfigSectionMap(Config, section):
     dict1 = {}
     options = Config.options(section)
     for option in options:
         try:
             dict1[option] = Config.get(section, option)
             if dict1[option] == -1:
-                print('skip: %s' % option)
+                print('skip: {0}'.format(option))
         except:
-            print('exception on %s!' % option)
+            print('exception on {0}!'.format(option))
             dict1[option] = None
     return dict1
 
-
-# tpp.cfg config file required - for details see README.md
-# set correct path if not in same directory as script
-dn = os.path.dirname(os.path.realpath(__file__))
-Config = ConfigParser.ConfigParser()
-Config.read(dn + '/tpp.cfg')
-
-DEBUG = Config.getboolean('tpp', 'debug')
-SENDMAIL = Config.getboolean('mail', 'sendmail')
-if SENDMAIL is True:
-    import smtplib
-    from email.mime.text import MIMEText
-    SMTPSERVER = ConfigSectionMap('mail')['smtpserver']
-    SMTPPORT = Config.getint('mail', 'smtpport')
-    SMTPUSER = ConfigSectionMap('mail')['smtpuser']
-    SMTPPASSWORD = ConfigSectionMap('mail')['smtppassword']
-PUSHOVER = Config.getboolean('pushover', 'pushover')
-if PUSHOVER is True:
-    import httplib
-    import urllib
-
-DUEDELTA = ConfigSectionMap('tpp')['duedelta']
-DUEINTERVAL = Config.getint('tpp', 'dueinterval')
-
-
-if Config.getboolean('mail', 'encryptmail') is True:
-    import gnupg
-    gpg = gnupg.GPG(gnupghome=ConfigSectionMap('mail')['gnupghome'])
-    gpg.encoding = 'utf-8'
 
 """Data structure
 ....prio: priority of the task - high, medium or low; mapped to 1, 2 or 3
@@ -102,8 +131,8 @@ DAYBEFORE = TODAY - timedelta(days=1)
 
 def printDebugOutput(flaglist, prepend):
     for task in flaglist:
-        print("%s: %s | %s | %s |  %s | %s | %s | %s | %s | %s | %s" %
-            (prepend, task.prio, task.startdate, task.project, task.taskline,
+        print("{0}: {1} | {2} | {3} |  {4} | {5} | {6} | {7} | {8} | {9} | {10}".format(
+            prepend, task.prio, task.startdate, task.project, task.taskline,
             task.done, task.repeat, task.repeatinterval,
             task.duesoon, task.overdue, task.maybe))
 
@@ -117,6 +146,7 @@ def parseInput(tpfile):
         project = ''
 
         for line in tplines:
+            line = line.decode("utf-8")
             try:
                 done = False
                 repeat = False
@@ -185,30 +215,21 @@ def parseInput(tpfile):
                         overdue,
                         maybe
                     ))
-            except Exception, e:
+            except Exception as e:
                 errlist.append((line, e))
         f.close()
-        if DEBUG:
-            printDebugOutput(flaglist, 'AfterRead')
         return flaglist
-    except Exception, exc:
-        sys.exit("parsing input file failed; %s" % str(exc))
+    except Exception as exc:
+        sys.exit("parsing input file failed; {0}".format(exc))
+
 
 # remove overdue and duesoon tags
-
 def removeTags(flaglist):
     try:
         flaglistnew = []
         for task in flaglist:
             if '@overdue' in task.taskline or '@duesoon' in task.taskline:
-                taskstring = ''
-                cut_string = task.taskline.split(' ')
-                for i in range(0, len(cut_string)):
-                    if '@overdue' in cut_string[i]:
-                        continue
-                    if '@duesoon' in cut_string[i]:
-                        continue
-                    taskstring = taskstring + cut_string[i] + ' '
+                taskstring = removeTaskParts(task.taskline, '@overdue @duesoon')
                 flaglistnew.append(Flaggednew(
                     task.prio,
                     task.startdate,
@@ -240,8 +261,8 @@ def removeTags(flaglist):
         # move items from flaglistnew back to flaglist
         flaglist = flaglistnew
         return flaglist
-    except Exception, exc:
-        sys.exit("removing tags failed; %s" % str(exc))
+    except Exception as exc:
+        sys.exit("removing tags failed; {0}".format(exc))
 
 
 # set overdue and duesoon tags
@@ -254,7 +275,7 @@ def setTags(flaglist):
                     task.prio,
                     task.startdate,
                     task.project,
-                    task.taskline + ' @overdue',
+                    '{0} @overdue'.format(task.taskline),
                     task.done,
                     task.repeat,
                     task.repeatinterval,
@@ -268,7 +289,7 @@ def setTags(flaglist):
                     task.prio,
                     task.startdate,
                     task.project,
-                    task.taskline + ' @duesoon',
+                    '{0} @duesoon'.format(task.taskline),
                     task.done,
                     task.repeat,
                     task.repeatinterval,
@@ -295,8 +316,8 @@ def setTags(flaglist):
         # move items from flaglistnew back to flaglist
         flaglist = flaglistnew
         return flaglist
-    except Exception, exc:
-        sys.exit("setting overdue or duesoon tags failed; %s" % str(exc))
+    except Exception as exc:
+        sys.exit("setting overdue or duesoon tags failed; {0}".format(exc))
 
 
 # check @done and move to archive file
@@ -306,17 +327,10 @@ def archiveDone(flaglist):
     try:
         for task in flaglist:
             if task.done:
-                if DEBUG:
-                    printDebugOutput(flaglist, 'BeforeDone')
-
-                taskstring = ''
-                cut_string = task.taskline.split(' ')
-                for i in range(0, len(cut_string)):
-                    if '@done' in cut_string[i]:
-                        continue
-                    taskstring = taskstring + cut_string[i] + ' '
-                newtask = taskstring + ' @project(' + task.project \
-                    + ') @done(' + str(DAYBEFORE) + ')'
+                #if DEBUG:
+                #    printDebugOutput(flaglist, 'BeforeDone')
+                taskstring = removeTaskParts(task.taskline, '@done')
+                newtask = '{0} @project({1}) @done({2})'.format(taskstring, task.project, DAYBEFORE)
                 flaglistarchive.append(Flaggedarchive(
                     task.prio,
                     task.startdate,
@@ -346,8 +360,8 @@ def archiveDone(flaglist):
                 ))
         flaglist = flaglistnew
         return (flaglist, flaglistarchive)
-    except Exception, exc:
-        sys.exit("archiving of @done failed; %s" % str(exc))
+    except Exception as exc:
+        sys.exit("archiving of @done failed; {0}".format(exc))
 
 
 # check @maybe and move to archive file (maybe)
@@ -357,24 +371,10 @@ def archiveMaybe(flaglist):
 
     for task in flaglist:
         if task.maybe:
-            if DEBUG:
-                printDebugOutput(flaglist, 'Maybe')
-
-            taskstring = ''
-            cut_string = task.taskline.split(' ')
-            for i in range(0, len(cut_string)):
-                if '@maybe' in cut_string[i]:
-                    continue
-                elif '@start' in cut_string[i]:
-                    continue
-                elif '@due' in cut_string[i]:
-                    continue
-                elif '@prio' in cut_string[i]:
-                    continue
-                elif '@project' in cut_string[i]:
-                    continue
-                taskstring = taskstring + cut_string[i] + ' '
-            newtask = taskstring + ' @project(' + task.project + ')'
+            #if DEBUG:
+            #    printDebugOutput(flaglist, 'Maybe')
+            taskstring = removeTaskParts(task.taskline, '@maybe @start @due @prio @project')
+            newtask = '{0} @project({1})'.format(taskstring, task.project)
             flaglistmaybe.append(Flaggedmaybe(
                 task.prio,
                 task.startdate,
@@ -432,7 +432,6 @@ def setRepeat(flaglist):
                     + relativedelta(months=intnum)
 
             # instantiate anything which is older or equal than today
-
             if newstartdate <= TODAY:
                 if '@home' in task.taskline:
                     projecttag = 'home'
@@ -440,21 +439,8 @@ def setRepeat(flaglist):
                     projecttag = 'work'
 
                 # get the relevant information from the task description
-
-                taskstring = ''
-                cut_string = task.taskline.split(' ')
-                for i in range(0, len(cut_string)):
-                    if '@repeat' in cut_string[i]:
-                        continue
-                    if '@home' in cut_string[i]:
-                        continue
-                    if '@work' in cut_string[i]:
-                        continue
-                    if '@start' in cut_string[i]:
-                        continue
-                    taskstring = taskstring + cut_string[i] + ' '
-                taskstring = taskstring + ' ' + '@start(' \
-                    + str(newstartdate) + ')'
+                taskstring = removeTaskParts(task.taskline, '@repeat @home @work @start')
+                taskstring = '{0} @start({1})'.format(taskstring, newstartdate)
                 done = False
                 repeat = False
                 repeatinterval = '-'
@@ -476,15 +462,8 @@ def setRepeat(flaglist):
                 ))
 
                 # remove old start-date in taskstring; add newstartdate as start date instead
-
-                taskstring = ''
-                cut_string = task.taskline.split(' ')
-                for i in range(0, len(cut_string)):
-                    if '@start' in cut_string[i]:
-                        continue
-                    taskstring = taskstring + cut_string[i] + ' '
-                taskstring = taskstring + ' ' + '@start(' \
-                    + str(newstartdate) + ')'
+                taskstring = removeTaskParts(task.taskline, '@start')
+                taskstring = '{0} @start({1})'.format(taskstring, newstartdate)
 
                 # prepare modified entry for repeat-task
 
@@ -504,7 +483,6 @@ def setRepeat(flaglist):
             else:
 
                 # write back repeat tasks with non-matching date
-
                 flaglistnew.append(Flaggednew(
                     task.prio,
                     task.startdate,
@@ -534,240 +512,226 @@ def setRepeat(flaglist):
             ))
     flaglist = flaglistnew
 
-    if DEBUG:
-        if DEBUG:
-            printDebugOutput(flaglist, 'AfterRepeat')
+    #if DEBUG:
+    #    printDebugOutput(flaglist, 'AfterRepeat')
     return flaglist
 
 
 def sortList(flaglist):
     try:
         # sort in following order: project (asc), prio (asc), date (desc)
-        flaglist = sorted(flaglist,
-            key=itemgetter(Flagged._fields.index('startdate')), reverse=True)
-        flaglist = sorted(flaglist,
-            key=itemgetter(Flagged._fields.index('project'),Flagged._fields.index('prio')))
+        flaglist = sorted(flaglist, key=itemgetter(Flagged._fields.index('startdate')), reverse=True)
+        flaglist = sorted(flaglist, key=itemgetter(Flagged._fields.index('project'),Flagged._fields.index('prio')))
         return flaglist
-    except Exception, exc:
-        sys.exit("sorting list failed; %s" % str(exc))
+    except Exception as exc:
+        sys.exit("sorting list failed; {0}".format(exc))
+
+
+def printOutFileDebug(flaglist, flaglistarchive, flaglistmaybe, tpfile):
+    print('work:')
+    for task in flaglist:
+        if task.project == 'work':
+            print('\t{0}'.format(task.taskline))
+
+    print('\nhome:')
+
+    for task in flaglist:
+        if task.project == 'home':
+            print('\t{0}'.format(task.taskline))
+
+    print('\nRepeat:')
+
+    for task in flaglist:
+        if task.project == 'Repeat':
+            print('\t{0}'.format(task.taskline))
+
+    print('\nArchive:')
+
+    print('\nINBOX:')
+
+    for task in flaglist:
+        if task.project == 'INBOX':
+            print('\t{0}'.format(task.taskline))
+
+    print('\nArchive:')
+
+    for task in flaglistarchive:
+        if task.project == 'Archive':
+            print('\t{0}'.format(task.taskline))
+    print('\nMaybe:')
+
+    for task in flaglistmaybe:
+        if task.project == 'Maybe':
+            print('\t{0}'.format(task.taskline))
+
 
 def printOutFile(flaglist, flaglistarchive, flaglistmaybe, tpfile):
-    if DEBUG:
-        print('work:')
+    try:
+        shutil.move(tpfile, '{0}backup/todo_{1}.txt'.format(tpfile[:-8], TODAY))
+        appendfilearchive = open('{0}archive.txt'.format(tpfile[:-8]), 'a')
+        appendfilemaybe = open('{0}maybe.txt'.format(tpfile[:-8]), 'a')
+
+        outfile = open(tpfile, 'w')
+
+        print('work:', file=outfile)
         for task in flaglist:
             if task.project == 'work':
-                print('\t' + str(task.taskline))
+                print('\t{0}'.format(task.taskline), file=outfile)
 
-        print('\nhome:')
+        print('\nhome:', file=outfile)
 
         for task in flaglist:
             if task.project == 'home':
-                print('\t' + str(task.taskline))
+                print('\t{0}'.format(task.taskline), file=outfile)
 
-        print('\nRepeat:')
+        print('\nRepeat:', file=outfile)
 
         for task in flaglist:
             if task.project == 'Repeat':
-                print('\t' + str(task.taskline))
+                print('\t{0}'.format(task.taskline), file=outfile)
 
-        print('\nArchive:')
+        print('\nArchive:', file=outfile)
 
-        print('\nINBOX:')
+        print('\nINBOX:', file=outfile)
 
         for task in flaglist:
             if task.project == 'INBOX':
-                print('\t' + str(task.taskline))
+                print('\t{0}'.format(task.taskline), file=outfile)
 
-        print('\nArchive:')
+        print('\n', file=outfile)
 
+        # append all done-files to archive-file
         for task in flaglistarchive:
             if task.project == 'Archive':
-                print('\t' + str(task.taskline))
-        print('\nMaybe:')
+                print('\t{0}'.format(task.taskline), file=appendfilearchive)
 
+        # append all maybe-files to maybe.txt
         for task in flaglistmaybe:
             if task.project == 'Maybe':
-                print('\t' + str(task.taskline))
-    else:
-        try:
-            shutil.move(tpfile, tpfile[:-8] + 'backup/todo_' + str(TODAY) + '.txt')
-            appendfilearchive = open(tpfile[:-8] + 'archive.txt', 'a')
-            appendfilemaybe = open(tpfile[:-8] + 'maybe.txt', 'a')
+                print('\t{0}'.format(task.taskline), file=appendfilemaybe)
 
-            outfile = open(tpfile, 'w')
-
-            print('work:', file=outfile)
-            for task in flaglist:
-                if task.project == 'work':
-                    print('\t' + str(task.taskline), file=outfile)
-
-            print('\nhome:', file=outfile)
-
-            for task in flaglist:
-                if task.project == 'home':
-                    print('\t' + str(task.taskline), file=outfile)
-
-            print('\nRepeat:', file=outfile)
-
-            for task in flaglist:
-                if task.project == 'Repeat':
-                    print('\t' + str(task.taskline), file=outfile)
-
-            print('\nArchive:', file=outfile)
-
-            print('\nINBOX:', file=outfile)
-
-            for task in flaglist:
-                if task.project == 'INBOX':
-                    print('\t' + str(task.taskline), file=outfile)
-
-            print('\n', file=outfile)
-
-            # append all done-files to archive-file
-            for task in flaglistarchive:
-                if task.project == 'Archive':
-                    print('\t' + str(task.taskline), file=appendfilearchive)
-
-            ## append all maybe-files to maybe.txt
-            for task in flaglistmaybe:
-                if task.project == 'Maybe':
-                    print('\t' + str(task.taskline), file=appendfilemaybe)
-
-        except Exception, exc:
-            sys.exit("creating output failed; %s" % str(exc))
+    except Exception as exc:
+        sys.exit("creating output failed; {0}".format(exc))
 
 def createPushover(flaglist, destination):
     try:
         mytxt = 'Open tasks with prio high or overdue:\n'
         for task in flaglist:
             if task.project == destination and \
-                (task.overdue is True or task.prio == 1) and task.startdate <= str(TODAY):
-                    taskstring = ''
-                    cut_string = task.taskline.split(' ')
-                    for i in range(0, len(cut_string)):
-                        if '@start' in cut_string[i]:
-                            continue
-                        taskstring = taskstring + cut_string[i] + ' '
-                    mytxt = mytxt + taskstring.strip() + '\n'
+                (task.overdue or task.prio == 1) and task.startdate <= str(TODAY):
+                    taskstring = removeTaskParts(task.taskline, '@start')
+                    mytxt = '{0}{1}\n'.format(mytxt, taskstring.strip())
         # pushover limits messages sizes to 512 characters
         if len(mytxt) > 512:
                 mytxt = mytxt[:512]
         sendPushover(mytxt)
 
-    except Exception, exc:
-        sys.exit("creating pushover message failed; %s" % str(exc))
+    except Exception as exc:
+        sys.exit("creating pushover message failed; {0}".format(exc))
+
 
 def sendPushover(content):
+    import httplib
+    import urllib
     try:
         conn = httplib.HTTPSConnection("api.pushover.net:443")
         conn.request("POST", "/1/messages.json",
             urllib.urlencode({
-                "token": ConfigSectionMap('pushover')['pushovertoken'],
-                "user": ConfigSectionMap('pushover')['pushoveruser'],
+                "token": PUSHOVERTOKEN,
+                "user": PUSHOVERUSER,
                 "message": content,
             }), {"Content-type": "application/x-www-form-urlencoded"})
         conn.getresponse()
 
-    except Exception, exc:
-        sys.exit("sending pushover message failed; %s" % str(exc))
+    except Exception as exc:
+        sys.exit("sending pushover message failed; {0}".format(exc))
 
 
 def sendMail(content, subject, sender, receiver, text_subtype, encrypted):
+    import smtplib
+    from email.mime.text import MIMEText
     try:
         if encrypted is False:
             msg = MIMEText(content, text_subtype)
         elif encrypted is True:
-            contentenc = gpg.encrypt(content,
-                ConfigSectionMap('mail')['targetfingerprint'], always_trust=True)
-            msg = MIMEText(str(contentenc), text_subtype)
-        else:
-            print('encrypted parameter is not boolean')
-            return -1
+            if ENCRYPTMAIL:
+                import gnupg
+                gpg = gnupg.GPG(gnupghome=GNUPGHOME)
+                gpg.encoding = 'utf-8'
+                contentenc = gpg.encrypt(content, TARGETFINGERPRINT, always_trust=True)
+                msg = MIMEText(str(contentenc), text_subtype)
+            else:
+                raise "encryption required, but not set in config file"
         msg['Subject'] = subject
         msg['From'] = sender
 
         conn = smtplib.SMTP(SMTPSERVER, SMTPPORT)
         conn.starttls()
-        conn.set_debuglevel(False)
+        if DEBUG:
+            conn.set_debuglevel(True)
+        else:
+            conn.set_debuglevel(False)
         conn.login(SMTPUSER, SMTPPASSWORD)
         try:
             conn.sendmail(sender, receiver, msg.as_string())
         finally:
             conn.close()
 
-    except Exception, exc:
-        sys.exit("sending email failed; %s" % str(exc))
+    except Exception as exc:
+        sys.exit("sending email failed; {0}".format(exc))
 
 
 def createMail(flaglist, destination, encrypted):
     if SENDMAIL:
         try:
-            source = ConfigSectionMap('mail')['sourceemail']
-            desthome = ConfigSectionMap('mail')['desthomeemail']
-            destwork = ConfigSectionMap('mail')['destworkemail']
+            source = SOURCEEMAIL
+            desthome = DESTHOMEEMAIL
+            destwork = DESTWORKEMAIL
 
             mytxt = '<html><head><title>Tasks for Today</title></head><body>'
 
-            mytxt = mytxt + '<h1>Tasks for Today</h1><p>'
-            mytxtasc = '# Tasks for Today #\n'
-            mytxt = mytxt + '<h2>Overdue tasks</h2><p>'
-            mytxtasc = mytxtasc + '\n## Overdue tasks ##\n'
+            mytxt = '{0}<h1>Tasks for Today</h1><p>'.format(mytxt)
+            mytxtasc = '# Tasks for Today\n'
+            mytxt = '{0}<h2>Overdue tasks</h2><p>'.format(mytxt)
+            mytxtasc = '{0}\n## Overdue tasks\n'.format(mytxtasc)
             # Overdue
 
             for task in flaglist:
                 if task.overdue is True and task.project == destination:
-                    taskstring = ''
-                    cut_string = task.taskline.split(' ')
-                    for i in range(0, len(cut_string)):
-                        if '@' in cut_string[i]:
-                            continue
-                        taskstring = taskstring + cut_string[i] + ' '
-                    taskstring = taskstring + '@due(' + task.duedate + ')'
-                    mytxt = mytxt + '<FONT COLOR="#ff0033">' + taskstring.strip()\
-                        + '</FONT>' + '<br/>'
-                    mytxtasc = mytxtasc + taskstring.strip() + '\n'
+                    print('Before:{0}'.format(task.taskline))
+                    taskstring = removeTaskParts(task.taskline, '@')
+                    print('After:{0}'.format(taskstring))
+                    taskstring = '{0} @due({1})'.format(taskstring, task.duedate)
+                    mytxt = '{0}<FONT COLOR="#ff0033">{1}</FONT><br/>'.format(mytxt, taskstring.strip())
+                    mytxtasc = '{0}{1}\n'.format(mytxtasc, taskstring.strip())
 
-            mytxt = mytxt + '<h2>Due soon tasks</h2>'
-            mytxtasc = mytxtasc + '\n## Due soon tasks ##\n'
+            mytxt = '{0}<h2>Due soon tasks</h2>'.format(mytxt)
+            mytxtasc = '{0}\n## Due soon tasks\n'.format(mytxtasc)
 
             # Due soon
 
             for task in flaglist:
                 if task.project == destination and task.duesoon is True and task.done is False:
-                    taskstring = ''
-                    cut_string = task.taskline.split(' ')
-                    for i in range(0, len(cut_string)):
-                        if '@' in cut_string[i]:
-                            continue
-                        taskstring = taskstring + cut_string[i] + ' '
-                    taskstring = taskstring + '@due(' + task.duedate + ')'
-                    mytxt = mytxt + taskstring.strip() + '<br/>'
-                    mytxtasc = mytxtasc + taskstring.strip() + '\n'
+                    taskstring = removeTaskParts(task.taskline, '@')
+                    taskstring = '{0} @due({1})'.format(taskstring, task.duedate)
+                    mytxt = '{0}{1}<br/>'.format(mytxt, taskstring.strip())
+                    mytxtasc = '{0}{1}\n'.format(mytxtasc, taskstring.strip())
 
-            mytxt = mytxt + '<h2>High priority tasks</h2><p>'
-            mytxtasc = mytxtasc + '\n## High priority tasks ##\n'
+            mytxt = '{0}<h2>High priority tasks</h2><p>'.format(mytxt)
+            mytxtasc = '{0}\n## High priority tasks ##\n'.format(mytxtasc)
 
             # All other high prio tasks
-
             for task in flaglist:
                 if task.project == destination and task.prio == 1 \
                         and task.startdate <= str(TODAY) \
                         and (task.overdue is not True or task.duesoon is not True) \
                         and task.done is False:
-                    taskstring = ''
-                    cut_string = task.taskline.split(' ')
-                    for i in range(0, len(cut_string)):
-                        if '@start' in cut_string[i]:
-                            continue
-                        if '@prio' in cut_string[i]:
-                            continue
-                        taskstring = taskstring + cut_string[i] + ' '
+                    taskstring = removeTaskParts(task.taskline, '@start @prio')
                     if task.duedate != '2999-12-31':
-                        taskstring = taskstring + '@due(' + task.duedate + ')'
-                    mytxt = mytxt + '<FONT COLOR="#ff0033">' + taskstring.strip()\
-                        + '</FONT>' + '<br/>'
-                    mytxtasc = mytxtasc + taskstring.strip() + '\n'
-            mytxt = mytxt + '</table></body></html>'
+                        taskstring = '{0} @due({1})'.format(taskstring, task.duedate)
+                    mytxt = '{0}<FONT COLOR="#ff0033">{1}</FONT><br/>'.format(mytxt, taskstring.strip())
+                    mytxtasc = '{0}{1}\n'.format(mytxtasc, taskstring.strip())
+            mytxt = '{0}</table></body></html>'.format(mytxt)
 
             if destination == 'home':
                 sendMail(mytxt, 'Taskpaper daily overview', source, desthome, 'html', False)
@@ -776,11 +740,12 @@ def createMail(flaglist, destination, encrypted):
             else:
                 raise "wrong destination"
 
-        except Exception, exc:
-            sys.exit("creating email failed; %s" % str(exc))
+        except Exception as exc:
+            sys.exit("creating email failed; {0}".format(exc))
 
 
 def main():
+    parseConfig()
     tpfile = sys.argv[1]
     flaglist = parseInput(tpfile)
     flaglist = removeTags(flaglist)
@@ -789,11 +754,14 @@ def main():
     (flaglist, flaglistmaybe) = archiveMaybe(flaglist)
     flaglist = setRepeat(flaglist)
     flaglist = sortList(flaglist)
-    printOutFile(flaglist, flaglistarchive, flaglistmaybe, tpfile)
-    if SENDMAIL is True:
+    if DEBUG:
+        printOutFileDebug(flaglist, flaglistarchive, flaglistmaybe, tpfile)
+    else:
+        printOutFile(flaglist, flaglistarchive, flaglistmaybe, tpfile)
+    if SENDMAIL:
         createMail(flaglist, 'home', False)
         #createMail(flaglist, 'work', True)
-    if PUSHOVER is True:
+    if PUSHOVER:
         createPushover(flaglist, 'home')
 
 if __name__ == '__main__':

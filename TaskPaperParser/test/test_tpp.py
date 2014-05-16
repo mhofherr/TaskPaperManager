@@ -31,6 +31,7 @@ def createFlagList():
     ))
     return flaglist
 
+
 def test_removeTagsDueSoon():
     flaglist = createFlagList()
     flaglist = TaskPaperParser.tpp.removeTags(flaglist)
@@ -40,6 +41,7 @@ def test_removeTagsDueSoon():
         else:
             assert True == True
 
+
 def test_removeTagsOverDue():
     flaglist = createFlagList()
     flaglist = TaskPaperParser.tpp.removeTags(flaglist)
@@ -48,6 +50,22 @@ def test_removeTagsOverDue():
             assert True == False
         else:
             assert True == True
+
+
+def test_removeTaskParts1():
+    taskstring = TaskPaperParser.tpp.removeTaskParts('testtask @start(2999-12-31) @prio(medium) @overdue', '@overdue')
+    if '@overdue' in taskstring:
+        assert True == False
+    else:
+        assert True == True
+
+
+def test_removeTaskParts2():
+    taskstring = TaskPaperParser.tpp.removeTaskParts('testtask @start(2999-12-31) @prio(medium) @overdue', '@')
+    if taskstring != 'testtask':
+        assert True == False
+    else:
+        assert True == True
 
 
 if __name__ == '__main__':
