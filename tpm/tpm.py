@@ -17,7 +17,7 @@ from operator import itemgetter
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
 import ConfigParser
-
+import getopt
 import shutil
 import sys
 import re
@@ -60,6 +60,38 @@ DEBUG = SENDMAIL = SMTPSERVER = SMTPPORT = SMTPUSER = SMTPPASSWORD\
     = PUSHOVER = DUEDELTA = DUEINTERVAL = ENCRYPTMAIL = GNUPGHOME\
     = PUSHOVERTOKEN = PUSHOVERUSER = TARGETFINGERPRINT = SOURCEEMAIL\
     = DESTHOMEEMAIL = DESTWORKEMAIL = ''
+
+
+def usage():
+    print('tpm.py -i <inputfile> -c <configfile> -m <mode:daily|review>')
+
+
+def parseArgs(argv):
+    inputfile = ''
+    configfile = ''
+    modus = ''
+    try:
+        opts, args = getopt.getopt(argv, "hi:c:m:", ["help", "infile=", "conffile=", "modus="])
+    except getopt.GetoptError:
+        usage()
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            usage()
+            sys.exit()
+        elif opt in ("-i", "--infile"):
+            inputfile = arg
+        elif opt in ("-c", "--conffile"):
+            configfile = arg
+        elif opt in ("-m", "--modus"):
+            modus = arg
+    if inputfile == '' or configfile == '' or modus == '':
+        usage()
+        sys.exit()
+    if modus != 'daily' or modus != "review":
+        usage()
+        sys.exit()
+    return (inputfile, configfile, modus)
 
 
 # filter unnecessary spaces
@@ -765,27 +797,31 @@ def createMail(flaglist, destination, encrypted):
 
 
 def main():
+    (inputfile, configfile, modus) = parseArgs(sys.argv[1:])
     parseConfig()
-    tpfile = sys.argv[1]
-    flaglist = parseInput(tpfile)
-    flaglist = removeTags(flaglist)
-    flaglist = setTags(flaglist)
-    (flaglist, flaglistarchive) = archiveDone(flaglist)
-    (flaglist, flaglistmaybe) = archiveMaybe(flaglist)
-    flaglist = setRepeat(flaglist)
-    flaglist = sortList(flaglist)
-    flaglist = filterWhitespaces(flaglist)
-    flaglistarchive = filterWhitespaces(flaglistarchive)
-    flaglistmaybe = filterWhitespaces(flaglistmaybe)
-    if DEBUG:
-        printOutFileDebug(flaglist, flaglistarchive, flaglistmaybe, tpfile)
-    else:
-        printOutFile(flaglist, flaglistarchive, flaglistmaybe, tpfile)
-    if SENDMAIL:
-        createMail(flaglist, 'home', False)
-        #createMail(flaglist, 'work', True)
-    if PUSHOVER:
-        createPushover(flaglist, 'home')
+    flaglist = parseInput(inputfile)
+    if modus == "daily":
+        flaglist = removeTags(flaglist)
+        flaglist = setTags(flaglist)
+        (flaglist, flaglistarchive) = archiveDone(flaglist)
+        (flaglist, flaglistmaybe) = archiveMaybe(flaglist)
+        flaglist = setRepeat(flaglist)
+        flaglist = sortList(flaglist)
+        flaglist = filterWhitespaces(flaglist)
+        flaglistarchive = filterWhitespaces(flaglistarchive)
+        flaglistmaybe = filterWhitespaces(flaglistmaybe)
+        if DEBUG:
+            printOutFileDebug(flaglist, flaglistarchive, flaglistmaybe, inputfile)
+        else:
+            printOutFile(flaglist, flaglistarchive, flaglistmaybe, inputfile)
+        if SENDMAIL:
+            createMail(flaglist, 'home', False)
+            #createMail(flaglist, 'work', True)
+        if PUSHOVER:
+            createPushover(flaglist, 'home')
+    elif modus == "review":
+        usage()
+
 
 if __name__ == '__main__':
     sys.exit(main())
