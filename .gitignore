@@ -1,5 +1,5 @@
-tpp.cfg
+tpm.cfg
 test/__pycache__
 __pycache__
-TaskPaperParser.egg-info
+TaskPaperManager.egg-info
 .coverage
