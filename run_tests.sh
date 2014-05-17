@@ -1,2 +1,3 @@
 #!/bin/bash
-py.test tpm/
+py.test --cov=tpm/ tpm/
+
