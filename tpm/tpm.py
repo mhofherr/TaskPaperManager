@@ -8,7 +8,7 @@
 #
 # License: GPL v3 (for details see LICENSE file)
 
-from __future__ import (absolute_import, division, print_function, unicode_literals)
+from __future__ import (absolute_import, division, print_function)
 
 from datetime import datetime, timedelta
 from collections import namedtuple
@@ -28,7 +28,7 @@ import os
 ....project: with which project is the task associated
 ....taskline: the actual task line
 ....done: is it done?; based on @done tag; boolean
-....repeat: only for tasks in the project"repeat"; boolean
+....repeat: only for tasks in the project "repeat"; boolean
 ....repeatinterval: the repeat inteval is given by a number followed by an interval type; e.g.
 ........2w = 2 weeks
 ........3d = 3 days
@@ -59,9 +59,7 @@ DAYBEFORE = TODAY - timedelta(days=1)
 def filterWhitespaces(flaglist):
     flaglistnew = []
     for task in flaglist:
-        print('Vorher:{0}'.format(task.taskline))
         taskstring = ' '.join(task.taskline.split())
-        print('Nachher:{0}'.format(taskstring))
         flaglistnew.append(Flaggednew(
             task.prio,
             task.startdate,
@@ -167,7 +165,7 @@ def parseInput(tpfile):
         project = ''
 
         for line in tplines:
-            line = line.decode("utf-8")
+            ####line = line.decode("utf-8")
             try:
                 done = False
                 repeat = False
@@ -671,7 +669,7 @@ def sendPushover(content):
 def sendMail(content, subject, sender, receiver, text_subtype, encrypted):
     import smtplib
     from email.mime.text import MIMEText
-    content = content.encode("utf-8")
+    ###content = content.encode("utf-8")
     try:
         if encrypted is False:
             msg = MIMEText(content, text_subtype)
@@ -720,9 +718,7 @@ def createMail(flaglist, destination, encrypted):
 
             for task in flaglist:
                 if task.overdue is True and task.project == destination:
-                    print('Before:{0}'.format(task.taskline))
                     taskstring = removeTaskParts(task.taskline, '@')
-                    print('After:{0}'.format(taskstring))
                     taskstring = '{0} @due({1})'.format(taskstring, task.duedate)
                     mytxt = '{0}<FONT COLOR="#ff0033">{1}</FONT><br/>'.format(mytxt, taskstring.strip())
                     mytxtasc = '{0}{1}\n'.format(mytxtasc, taskstring.strip())
