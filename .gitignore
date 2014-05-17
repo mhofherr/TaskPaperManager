@@ -3,3 +3,6 @@ test/__pycache__
 __pycache__
 TaskPaperManager.egg-info
 .coverage
+build
+dist
+*.pyc
