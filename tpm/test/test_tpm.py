@@ -1,7 +1,7 @@
 import pytest
 from pytest import fixture
 from collections import namedtuple
-import TaskPaperParser.tpp
+import tpm.tpm
 
 Flagged = Flaggednew = Flaggedarchive = Flaggedmaybe = namedtuple('Flagged', [
     'prio',
@@ -34,7 +34,7 @@ def createFlagList():
 
 def test_removeTagsDueSoon():
     flaglist = createFlagList()
-    flaglist = TaskPaperParser.tpp.removeTags(flaglist)
+    flaglist = tpm.tpm.removeTags(flaglist)
     for task in flaglist:
         if '@duesoon' in task.taskline:
             assert True == False
@@ -44,7 +44,7 @@ def test_removeTagsDueSoon():
 
 def test_removeTagsOverDue():
     flaglist = createFlagList()
-    flaglist = TaskPaperParser.tpp.removeTags(flaglist)
+    flaglist = tpm.tpm.removeTags(flaglist)
     for task in flaglist:
         if '@overdue' in task.taskline:
             assert True == False
@@ -53,7 +53,7 @@ def test_removeTagsOverDue():
 
 
 def test_removeTaskParts1():
-    taskstring = TaskPaperParser.tpp.removeTaskParts('testtask @start(2999-12-31) @prio(medium) @overdue', '@overdue')
+    taskstring = tpm.tpm.removeTaskParts('testtask @start(2999-12-31) @prio(medium) @overdue', '@overdue')
     if '@overdue' in taskstring:
         assert True == False
     else:
@@ -61,7 +61,7 @@ def test_removeTaskParts1():
 
 
 def test_removeTaskParts2():
-    taskstring = TaskPaperParser.tpp.removeTaskParts('testtask @start(2999-12-31) @prio(medium) @overdue', '@')
+    taskstring = tpm.tpm.removeTaskParts('testtask @start(2999-12-31) @prio(medium) @overdue', '@')
     if taskstring.strip() != 'testtask':
         assert True == False
     else:
