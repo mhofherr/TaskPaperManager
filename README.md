@@ -11,6 +11,16 @@ It provides the following features:
 * Sort the list (primary sort criterium: @prio, secondary: @start)
 * Copy tasks with the tag @maybe in a dedicated maybe list and remove from master list
 
+## Build Status
+
+[![Build Status](https://travis-ci.org/mhofherr/TaskPaperManager.svg?branch=develop)](https://travis-ci.org/mhofherr/TaskPaperManager)
+
+## Python versions
+
+TPM is developed on Python 2.7. Support for Python 3.4 is planned for the next minor release.
+
+## Configuration
+
 The variable parameters are configured via a separate config file (tpp.cfg):
 
     [tpm]
