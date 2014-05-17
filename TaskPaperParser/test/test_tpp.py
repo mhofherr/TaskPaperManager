@@ -62,7 +62,7 @@ def test_removeTaskParts1():
 
 def test_removeTaskParts2():
     taskstring = TaskPaperParser.tpp.removeTaskParts('testtask @start(2999-12-31) @prio(medium) @overdue', '@')
-    if taskstring != 'testtask':
+    if taskstring.strip() != 'testtask':
         assert True == False
     else:
         assert True == True
