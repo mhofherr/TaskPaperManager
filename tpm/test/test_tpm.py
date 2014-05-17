@@ -68,5 +68,19 @@ def test_removeTaskParts2():
         assert True == True
 
 
+def test_filterWhitespaces():
+    flaglist = []
+    flaglist.append(Flagged(
+        1, '2999-12-31', 'home', '   - testtask @prio(high)    @start(2999-12-31)     @due(2999-12-31)    @duesoon',
+        True, False, '2w', '2999-12-31', True, False, False,
+    ))
+    flaglist = tpm.tpm.filterWhitespaces(flaglist)
+    for task in flaglist:
+        if task.taskline == '- testtask @prio(high) @start(2999-12-31) @due(2999-12-31) @duesoon':
+            assert True == True
+        else:
+            assert True == False
+
+
 if __name__ == '__main__':
     pytest.main()

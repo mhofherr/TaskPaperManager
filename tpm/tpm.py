@@ -23,19 +23,19 @@ import re
 import os
 
 """Data structure
-....prio: priority of the task - high, medium or low; mapped to 1, 2 or 3
-....startdate: when will the task be visible - format: yyyy-mm-dd
-....project: with which project is the task associated
-....taskline: the actual task line
-....done: is it done?; based on @done tag; boolean
-....repeat: only for tasks in the project "repeat"; boolean
-....repeatinterval: the repeat inteval is given by a number followed by an interval type; e.g.
-........2w = 2 weeks
-........3d = 3 days
-........1m = 1 month
-....duedate: same format as startdate
-....duesoon: boolean; true if today is duedate minus DUEDELTA in DUEINTERVAL (constants) or less
-....overdue: boolean; true if today is after duedate"""
+prio: priority of the task - high, medium or low; mapped to 1, 2 or 3
+startdate: when will the task be visible - format: yyyy-mm-dd
+project: with which project is the task associated
+taskline: the actual task line
+done: is it done?; based on @done tag; boolean
+repeat: only for tasks in the project "repeat"; boolean
+repeatinterval: the repeat inteval is given by a number followed by an interval type; e.g.
+    2w = 2 weeks
+    3d = 3 days
+    1m = 1 month
+duedate: same format as startdate
+duesoon: boolean; true if today is duedate minus DUEDELTA in DUEINTERVAL (constants) or less
+overdue: boolean; true if today is after duedate"""
 
 Flagged = Flaggednew = Flaggedarchive = Flaggedmaybe = namedtuple('Flagged', [
     'prio',
@@ -53,6 +53,12 @@ Flagged = Flaggednew = Flaggedarchive = Flaggedmaybe = namedtuple('Flagged', [
 
 TODAY = datetime.date(datetime.now())
 DAYBEFORE = TODAY - timedelta(days=1)
+
+# global vars
+DEBUG = SENDMAIL = SMTPSERVER = SMTPPORT = SMTPUSER = SMTPPASSWORD\
+    = PUSHOVER = DUEDELTA = DUEINTERVAL = ENCRYPTMAIL = GNUPGHOME\
+    = PUSHOVERTOKEN = PUSHOVERUSER = TARGETFINGERPRINT = SOURCEEMAIL\
+    = DESTHOMEEMAIL = DESTWORKEMAIL = ''
 
 
 # filter unnecessary spaces
@@ -276,10 +282,7 @@ def removeTags(flaglist):
                     task.overdue,
                     task.maybe,
                 ))
-
-        # move items from flaglistnew back to flaglist
-        flaglist = flaglistnew
-        return flaglist
+        return flaglistnew
     except Exception as exc:
         sys.exit("removing tags failed; {0}".format(exc))
 
@@ -331,10 +334,7 @@ def setTags(flaglist):
                     task.overdue,
                     task.maybe,
                 ))
-
-        # move items from flaglistnew back to flaglist
-        flaglist = flaglistnew
-        return flaglist
+        return flaglistnew
     except Exception as exc:
         sys.exit("setting overdue or duesoon tags failed; {0}".format(exc))
 
@@ -377,8 +377,7 @@ def archiveDone(flaglist):
                     task.overdue,
                     task.maybe,
                 ))
-        flaglist = flaglistnew
-        return (flaglist, flaglistarchive)
+        return (flaglistnew, flaglistarchive)
     except Exception as exc:
         sys.exit("archiving of @done failed; {0}".format(exc))
 
@@ -421,8 +420,7 @@ def archiveMaybe(flaglist):
                 task.overdue,
                 task.maybe,
             ))
-    flaglist = flaglistnew
-    return (flaglist, flaglistmaybe)
+    return (flaglistnew, flaglistmaybe)
 
 
 # check repeat statements; instantiate new tasks if startdate + repeat interval = today
@@ -529,18 +527,18 @@ def setRepeat(flaglist):
                 task.overdue,
                 task.maybe,
             ))
-    flaglist = flaglistnew
-
     #if DEBUG:
     #    printDebugOutput(flaglist, 'AfterRepeat')
-    return flaglist
+    return flaglistnew
 
 
 def sortList(flaglist):
     try:
         # sort in following order: project (asc), prio (asc), date (desc)
-        flaglist = sorted(flaglist, key=itemgetter(Flagged._fields.index('startdate')), reverse=True)
-        flaglist = sorted(flaglist, key=itemgetter(Flagged._fields.index('project'),Flagged._fields.index('prio')))
+        flaglist = sorted(flaglist, key=itemgetter(Flagged._fields.index
+                ('startdate')), reverse=True)
+        flaglist = sorted(flaglist, key=itemgetter(Flagged._fields.index
+                ('project'),Flagged._fields.index('prio')))
         return flaglist
     except Exception as exc:
         sys.exit("sorting list failed; {0}".format(exc))
@@ -632,6 +630,7 @@ def printOutFile(flaglist, flaglistarchive, flaglistmaybe, tpfile):
     except Exception as exc:
         sys.exit("creating output failed; {0}".format(exc))
 
+
 def createPushover(flaglist, destination):
     try:
         mytxt = 'Open tasks with prio high or overdue:\n'
@@ -720,7 +719,8 @@ def createMail(flaglist, destination, encrypted):
                 if task.overdue is True and task.project == destination:
                     taskstring = removeTaskParts(task.taskline, '@')
                     taskstring = '{0} @due({1})'.format(taskstring, task.duedate)
-                    mytxt = '{0}<FONT COLOR="#ff0033">{1}</FONT><br/>'.format(mytxt, taskstring.strip())
+                    mytxt = '{0}<FONT COLOR="#ff0033">{1}</FONT><br/>'.format(mytxt,
+                            taskstring.strip())
                     mytxtasc = '{0}{1}\n'.format(mytxtasc, taskstring.strip())
 
             mytxt = '{0}<h2>Due soon tasks</h2>'.format(mytxt)
@@ -747,7 +747,8 @@ def createMail(flaglist, destination, encrypted):
                     taskstring = removeTaskParts(task.taskline, '@start @prio')
                     if task.duedate != '2999-12-31':
                         taskstring = '{0} @due({1})'.format(taskstring, task.duedate)
-                    mytxt = '{0}<FONT COLOR="#ff0033">{1}</FONT><br/>'.format(mytxt, taskstring.strip())
+                    mytxt = '{0}<FONT COLOR="#ff0033">{1}</FONT><br/>'.format(mytxt,
+                            taskstring.strip())
                     mytxtasc = '{0}{1}\n'.format(mytxtasc, taskstring.strip())
             mytxt = '{0}</table></body></html>'.format(mytxt)
 
