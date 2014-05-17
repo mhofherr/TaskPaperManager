@@ -22,6 +22,61 @@ import sys
 import re
 import os
 
+"""Data structure
+....prio: priority of the task - high, medium or low; mapped to 1, 2 or 3
+....startdate: when will the task be visible - format: yyyy-mm-dd
+....project: with which project is the task associated
+....taskline: the actual task line
+....done: is it done?; based on @done tag; boolean
+....repeat: only for tasks in the project"repeat"; boolean
+....repeatinterval: the repeat inteval is given by a number followed by an interval type; e.g.
+........2w = 2 weeks
+........3d = 3 days
+........1m = 1 month
+....duedate: same format as startdate
+....duesoon: boolean; true if today is duedate minus DUEDELTA in DUEINTERVAL (constants) or less
+....overdue: boolean; true if today is after duedate"""
+
+Flagged = Flaggednew = Flaggedarchive = Flaggedmaybe = namedtuple('Flagged', [
+    'prio',
+    'startdate',
+    'project',
+    'taskline',
+    'done',
+    'repeat',
+    'repeatinterval',
+    'duedate',
+    'duesoon',
+    'overdue',
+    'maybe',
+])
+
+TODAY = datetime.date(datetime.now())
+DAYBEFORE = TODAY - timedelta(days=1)
+
+
+# filter unnecessary spaces
+def filterWhitespaces(flaglist):
+    flaglistnew = []
+    for task in flaglist:
+        print('Vorher:{0}'.format(task.taskline))
+        taskstring = ' '.join(task.taskline.split())
+        print('Nachher:{0}'.format(taskstring))
+        flaglistnew.append(Flaggednew(
+            task.prio,
+            task.startdate,
+            task.project,
+            taskstring,
+            task.done,
+            task.repeat,
+            task.repeatinterval,
+            task.duedate,
+            task.duesoon,
+            task.overdue,
+            task.maybe
+        ))
+    return flaglistnew
+
 
 # remove elements from a taskpaper string
 def removeTaskParts(instring, removelist):
@@ -93,40 +148,6 @@ def ConfigSectionMap(Config, section):
             print('exception on {0}!'.format(option))
             dict1[option] = None
     return dict1
-
-
-"""Data structure
-....prio: priority of the task - high, medium or low; mapped to 1, 2 or 3
-....startdate: when will the task be visible - format: yyyy-mm-dd
-....project: with which project is the task associated
-....taskline: the actual task line
-....done: is it done?; based on @done tag; boolean
-....repeat: only for tasks in the project"repeat"; boolean
-....repeatinterval: the repeat inteval is given by a number followed by an interval type; e.g.
-........2w = 2 weeks
-........3d = 3 days
-........1m = 1 month
-....duedate: same format as startdate
-....duesoon: boolean; true if today is duedate minus DUEDELTA in DUEINTERVAL (constants) or less
-....overdue: boolean; true if today is after duedate"""
-
-
-Flagged = Flaggednew = Flaggedarchive = Flaggedmaybe = namedtuple('Flagged', [
-    'prio',
-    'startdate',
-    'project',
-    'taskline',
-    'done',
-    'repeat',
-    'repeatinterval',
-    'duedate',
-    'duesoon',
-    'overdue',
-    'maybe',
-])
-
-TODAY = datetime.date(datetime.now())
-DAYBEFORE = TODAY - timedelta(days=1)
 
 
 def printDebugOutput(flaglist, prepend):
@@ -650,6 +671,7 @@ def sendPushover(content):
 def sendMail(content, subject, sender, receiver, text_subtype, encrypted):
     import smtplib
     from email.mime.text import MIMEText
+    content = content.encode("utf-8")
     try:
         if encrypted is False:
             msg = MIMEText(content, text_subtype)
@@ -754,6 +776,9 @@ def main():
     (flaglist, flaglistmaybe) = archiveMaybe(flaglist)
     flaglist = setRepeat(flaglist)
     flaglist = sortList(flaglist)
+    flaglist = filterWhitespaces(flaglist)
+    flaglistarchive = filterWhitespaces(flaglistarchive)
+    flaglistmaybe = filterWhitespaces(flaglistmaybe)
     if DEBUG:
         printOutFileDebug(flaglist, flaglistarchive, flaglistmaybe, tpfile)
     else:
