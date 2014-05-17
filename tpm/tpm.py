@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#
-# TaskPaperManager
-# originally based on a small script for printing a task summary from K. Marchand
-# now completely re-written and modified for my own requirements
-#
-# License: GPL v3 (for details see LICENSE file)
+"""
+TaskPaperManager
+originally based on a small script for printing a task summary from K. Marchand
+now completely re-written and modified for my own requirements
+
+License: GPL v3 (for details see LICENSE file)
+"""
 
 from __future__ import (absolute_import, division, print_function)
 

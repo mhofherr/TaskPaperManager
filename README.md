@@ -15,6 +15,8 @@ It provides the following features:
 
 [![Build Status](https://travis-ci.org/mhofherr/TaskPaperManager.svg?branch=develop)](https://travis-ci.org/mhofherr/TaskPaperManager)
 
+[![Coverage Status](https://coveralls.io/repos/mhofherr/TaskPaperManager/badge.png?branch=develop)](https://coveralls.io/r/mhofherr/TaskPaperManager?branch=develop)
+
 ## Python versions
 
 TPM is developed on Python 2.7. Support for Python 3.4 is planned for the next minor release.
