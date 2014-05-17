@@ -1,8 +1,7 @@
-# TaskPaperParser
+# TaskPaperManager
 
 
-TaskPaperParser (TPP) is a little python script to parse and modify a TaskPaper file.
-The script is right now based on my local environment and needs some adaption for different environment.
+TaskPaperManager (TPM) is a little python script to parse and modify a TaskPaper file.
 It provides the following features:
 
 * Move done tasks (@done) to a separate archive file
@@ -14,7 +13,7 @@ It provides the following features:
 
 The variable parameters are configured via a separate config file (tpp.cfg):
 
-    [tpp]
+    [tpm]
     debug: False
     duedelta: days
     dueinterval: 3

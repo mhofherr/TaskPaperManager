@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #
-# TaskPaper Parser
+# TaskPaperManager
 # originally based on a small script for printing a task summary from K. Marchand
 # now completely re-written and modified for my own requirements
 #
@@ -94,11 +94,11 @@ def removeTaskParts(instring, removelist):
 
 def parseConfig():
     # sets the config parameters as global variables
-    # tpp.cfg config file required - for details see README.md
+    # tpm.cfg config file required - for details see README.md
     # set correct path if not in same directory as script
     dn = os.path.dirname(os.path.realpath(__file__))
     Config = ConfigParser.ConfigParser()
-    Config.read('{0}/tpp.cfg'.format(dn))
+    Config.read('{0}/tpm.cfg'.format(dn))
     global DEBUG
     global SENDMAIL
     global SMTPSERVER
@@ -117,15 +117,15 @@ def parseConfig():
     global DESTHOMEEMAIL
     global DESTWORKEMAIL
 
-    DEBUG = Config.getboolean('tpp', 'debug')
+    DEBUG = Config.getboolean('tpm', 'debug')
     SENDMAIL = Config.getboolean('mail', 'sendmail')
     SMTPSERVER = ConfigSectionMap(Config, 'mail')['smtpserver']
     SMTPPORT = Config.getint('mail', 'smtpport')
     SMTPUSER = ConfigSectionMap(Config, 'mail')['smtpuser']
     SMTPPASSWORD = ConfigSectionMap(Config, 'mail')['smtppassword']
     PUSHOVER = Config.getboolean('pushover', 'pushover')
-    DUEDELTA = ConfigSectionMap(Config, 'tpp')['duedelta']
-    DUEINTERVAL = Config.getint('tpp', 'dueinterval')
+    DUEDELTA = ConfigSectionMap(Config, 'tpm')['duedelta']
+    DUEINTERVAL = Config.getint('tpm', 'dueinterval')
     ENCRYPTMAIL = Config.getboolean('mail', 'encryptmail')
     GNUPGHOME = ConfigSectionMap(Config, 'mail')['gnupghome']
     PUSHOVERTOKEN = ConfigSectionMap(Config, 'pushover')['pushovertoken']
