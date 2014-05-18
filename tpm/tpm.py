@@ -21,7 +21,21 @@ import getopt
 import shutil
 import sys
 import re
-import os
+
+
+# pdf test
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.rl_config import defaultPageSize
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import inch
+PAGE_HEIGHT = defaultPageSize[1]
+PAGE_WIDTH = defaultPageSize[0]
+styles = getSampleStyleSheet()
+Title = "Hello world"
+pageinfo = "platypus example"
+
+# end pdf test
 
 """Data structure
 prio: priority of the task - high, medium or low; mapped to 1, 2 or 3
@@ -59,11 +73,14 @@ DAYBEFORE = TODAY - timedelta(days=1)
 DEBUG = SENDMAIL = SMTPSERVER = SMTPPORT = SMTPUSER = SMTPPASSWORD\
     = PUSHOVER = DUEDELTA = DUEINTERVAL = ENCRYPTMAIL = GNUPGHOME\
     = PUSHOVERTOKEN = PUSHOVERUSER = TARGETFINGERPRINT = SOURCEEMAIL\
-    = DESTHOMEEMAIL = DESTWORKEMAIL = ''
+    = DESTHOMEEMAIL = DESTWORKEMAIL = REVIEWOUTPUTTYPE = REVIEWPATH = ''
 
 
 def usage():
     print('tpm.py -i <inputfile> -c <configfile> -m <mode:daily|review>')
+    """
+    Prints usage information.
+    """
 
 
 def parseArgs(argv):
@@ -88,7 +105,7 @@ def parseArgs(argv):
     if inputfile == '' or configfile == '' or modus == '':
         usage()
         sys.exit()
-    if modus != 'daily' or modus != "review":
+    if modus != 'daily' and modus != "review":
         usage()
         sys.exit()
     return (inputfile, configfile, modus)
@@ -129,13 +146,12 @@ def removeTaskParts(instring, removelist):
     return outstring
 
 
-def parseConfig():
+def parseConfig(configfile):
     # sets the config parameters as global variables
     # tpm.cfg config file required - for details see README.md
     # set correct path if not in same directory as script
-    dn = os.path.dirname(os.path.realpath(__file__))
     Config = ConfigParser.ConfigParser()
-    Config.read('{0}/tpm.cfg'.format(dn))
+    Config.read(configfile)
     global DEBUG
     global SENDMAIL
     global SMTPSERVER
@@ -153,6 +169,8 @@ def parseConfig():
     global SOURCEEMAIL
     global DESTHOMEEMAIL
     global DESTWORKEMAIL
+    global REVIEWOUTPUTTYPE
+    global REVIEWPATH
 
     DEBUG = Config.getboolean('tpm', 'debug')
     SENDMAIL = Config.getboolean('mail', 'sendmail')
@@ -171,6 +189,8 @@ def parseConfig():
     SOURCEEMAIL = ConfigSectionMap(Config, 'mail')['sourceemail']
     DESTHOMEEMAIL = ConfigSectionMap(Config, 'mail')['desthomeemail']
     DESTWORKEMAIL = ConfigSectionMap(Config, 'mail')['destworkemail']
+    REVIEWOUTPUTTYPE = ConfigSectionMap(Config, 'review')['outputtype']
+    REVIEWPATH = ConfigSectionMap(Config, 'review')['reviewpath']
 
 
 def ConfigSectionMap(Config, section):
@@ -796,13 +816,49 @@ def createMail(flaglist, destination, encrypted):
             sys.exit("creating email failed; {0}".format(exc))
 
 
+def myFirstPage(canvas, doc):
+    canvas.saveState()
+    canvas.setFont('Times-Bold', 16)
+    canvas.drawCentredString(PAGE_WIDTH/2.0, PAGE_HEIGHT-108, Title)
+    canvas.setFont('Times-Roman', 9)
+    canvas.drawString(inch, 0.75 * inch, "First Page / %s" % pageinfo)
+    canvas.restoreState()
+
+
+def myLaterPages(canvas, doc):
+    canvas.saveState()
+    canvas.setFont('Times-Roman', 9)
+    canvas.drawString(inch, 0.75 * inch, "Page %d %s" % (doc.page, pageinfo))
+    canvas.restoreState()
+
+
+def printPDFReview(reviewfile, reviewtext):
+    doc = SimpleDocTemplate(reviewfile)
+    Story = [Spacer(1, 2*inch)]
+    style = styles["Normal"]
+    for i in range(100):
+        bogustext = ("Paragraph number %s. " % i) * 20
+        p = Paragraph(bogustext, style)
+        Story.append(p)
+        Story.append(Spacer(1, 0.2*inch))
+    doc.build(Story, onFirstPage=myFirstPage, onLaterPages=myLaterPages)
+
+
+def printMDReview(reviewfile, reviewtext):
+    pass
+
+
+def createReview(flaglist):
+    reviewtext = ''
+
+    return reviewtext
+
+
 def main():
     (inputfile, configfile, modus) = parseArgs(sys.argv[1:])
-    parseConfig()
+    parseConfig(configfile)
     flaglist = parseInput(inputfile)
     if modus == "daily":
-        flaglist = removeTags(flaglist)
-        flaglist = setTags(flaglist)
         (flaglist, flaglistarchive) = archiveDone(flaglist)
         (flaglist, flaglistmaybe) = archiveMaybe(flaglist)
         flaglist = setRepeat(flaglist)
@@ -820,7 +876,16 @@ def main():
         if PUSHOVER:
             createPushover(flaglist, 'home')
     elif modus == "review":
-        usage()
+        reviewtext = createReview(flaglist)
+        # todo: create full file name for review
+        reviewfile = '{0}/{1}'.format(REVIEWPATH, TODAY)
+        if REVIEWOUTPUTTYPE == 'pdf':
+            printPDFReview('{0}.pdf'.format(reviewfile), reviewtext)
+        elif REVIEWOUTPUTTYPE == 'md':
+            printMDReview('{0}.md'.format(reviewfile), reviewtext)
+    else:
+        print("modus error")
+        sys.exit()
 
 
 if __name__ == '__main__':

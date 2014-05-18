@@ -60,6 +60,10 @@ The variable parameters are configured via a separate config file (tpm.cfg):
     pushovertoken: <application token>
     pushoveruser: <user string>
 
+    [review]
+    outputtype: <pdf or md; pdf for ... well ... pdf and md for markdown>
+    reviewpath: <Path for PDF output when started in review mode>
+
 *dueinterval:* all tasks will be tagged as @duesoon when today is x days (or whatever you define for *duedelta*) before the duedate (defined in @due(...))
 
 *debug:* When enabling debug mode the script will not modify your tasklist but will print instead debug output. This has no influence on sending email or sending pushover messages.
