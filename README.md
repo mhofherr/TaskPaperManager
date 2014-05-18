@@ -21,6 +21,11 @@ It provides the following features:
 
 TPM is developed on Python 2.7. Support for Python 3.4 is planned for the next minor release.
 
+## Future versions
+
+* Full support for Python 3.4
+* Adding a mode for weekly review to get a detailled breakdown of the tasks (grouped by projects, customers, waiting ...)
+
 ## Configuration
 
 The variable parameters are configured via a separate config file (tpm.cfg):
