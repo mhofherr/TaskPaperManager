@@ -1,13 +1,13 @@
 # TaskPaperManager
 
 
-TaskPaperManager (TPM) is a little python script to parse and modify a TaskPaper file.
+TaskPaperManager (TPM) is a python script to parse and modify a TaskPaper file.
 It provides the following features:
 
 * Move done tasks (@done) to a separate archive file
 * Check any repeat-tasks (@repeat) and instantiate a new task entry if a repeat-cycle comes up
-* send daily status mails for @high, @medium, @duesoon and @overdue tasks
-* flag tasks with due-dates as @duesoon or @overdue (helpful for hightlighting with modified TaskPaper Theme)
+* send daily status mails for @high, @duesoon and @overdue tasks
+* flag tasks with due dates as @duesoon or @overdue (helpful for hightlighting with modified TaskPaper Theme)
 * Sort the list (primary sort criterium: @prio, secondary: @start)
 * Copy tasks with the tag @maybe in a dedicated maybe list and remove from master list
 
@@ -19,10 +19,17 @@ It provides the following features:
 
 TPM is developed on Python 2.7. Support for Python 3.4 is planned for the next minor release.
 
-## Future versions
+## Future features
 
 * Full support for Python 3.4
 * Adding a mode for weekly review to get a detailled breakdown of the tasks (grouped by projects, customers, waiting ...)
+* Support for comment lines
+* Add better commandline parameters (e.g. for setting the config file)
+
+## Current limitations
+
+* One task - one line: comment line for tasks are currently not supported
+* Stacked projects: there s no multi-level support of projects
 
 ## Configuration
 
@@ -117,3 +124,16 @@ The TaskPaper theme highlights @overdue and @prio(high) in red and bold. @Duesoo
 ## KeyboardMaestro
 
 Adding tags by hand can be quite tedious, so KeyboardMaestro comes to the rescue. You can find my KM macros for all supported text in the directory "KeyboardMaestro".
+
+## Contact
+
+Do you  have questions or comments about `TaskPaperManager`? Contact me via [taskpaper@mhofherr.de](mailto:taskpaper@mhofherr.de) or [twitter](https://twitter.com/MatthiasHofherr).
+
+## Changelog
+
+### Version 0.9.0
+
+* released after several bugfixes and heavy refactoring
+* version 1.0.0 will include review mode
+* internal: included tests, Travis CI, coveralls.io ... 
+
