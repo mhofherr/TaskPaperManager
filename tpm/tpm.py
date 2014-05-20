@@ -844,7 +844,26 @@ def printPDFReview(reviewfile, reviewtext):
     doc.build(Story, onFirstPage=myFirstPage, onLaterPages=myLaterPages)
 
 
+def createProjectList(flaglist):
+    projectlist = ''
+    return projectlist
+
+
+def createPeopleList(flaglist):
+    peoplelist = ''
+    return peoplelist
+
+
+def createCustomerList(flaglist):
+    customerlist = ''
+    return customerlist
+
+
 def printMDReview(reviewfile, reviewtext):
+    pass
+
+
+def printHTMLReview(reviewfile, reviewtext):
     pass
 
 
@@ -876,13 +895,17 @@ def main():
         if PUSHOVER:
             createPushover(flaglist, 'home')
     elif modus == "review":
-        reviewtext = createReview(flaglist)
-        # todo: create full file name for review
+        peoplelist = createPeopleList(flaglist)
+        customerlist = createCustomerList(flaglist)
+        projectlist = createProjectList(flaglist)
         reviewfile = '{0}/{1}'.format(REVIEWPATH, TODAY)
+        #reviewtext = createReview(flaglist)
         if REVIEWOUTPUTTYPE == 'pdf':
             printPDFReview('{0}.pdf'.format(reviewfile), reviewtext)
         elif REVIEWOUTPUTTYPE == 'md':
             printMDReview('{0}.md'.format(reviewfile), reviewtext)
+        elif REVIEWOUTPUTTYPE == 'html':
+            printHTMLReview('{0}.html'.format(reviewfile), reviewtext)
     else:
         print("modus error")
         sys.exit()
