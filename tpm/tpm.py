@@ -16,26 +16,15 @@ from collections import namedtuple
 from operator import itemgetter
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
+# todo - only import if feature is enabled
+import markdown2
+import xhtml2pdf.pisa as pisa
+import cStringIO
 import ConfigParser
 import getopt
 import shutil
 import sys
 import re
-
-
-# pdf test
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.rl_config import defaultPageSize
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import inch
-PAGE_HEIGHT = defaultPageSize[1]
-PAGE_WIDTH = defaultPageSize[0]
-styles = getSampleStyleSheet()
-Title = "Hello world"
-pageinfo = "platypus example"
-
-# end pdf test
 
 """Data structure
 prio: priority of the task - high, medium or low; mapped to 1, 2 or 3
@@ -73,7 +62,9 @@ DAYBEFORE = TODAY - timedelta(days=1)
 DEBUG = SENDMAIL = SMTPSERVER = SMTPPORT = SMTPUSER = SMTPPASSWORD\
     = PUSHOVER = DUEDELTA = DUEINTERVAL = ENCRYPTMAIL = GNUPGHOME\
     = PUSHOVERTOKEN = PUSHOVERUSER = TARGETFINGERPRINT = SOURCEEMAIL\
-    = DESTHOMEEMAIL = DESTWORKEMAIL = REVIEWOUTPUTTYPE = REVIEWPATH = ''
+    = DESTHOMEEMAIL = DESTWORKEMAIL = REVIEWPATH\
+    = REVIEWAGENDA = REVIEWPROJECTS = REVIEWCUSTOMERS\
+    = REVIEWWAITING = REVIEWOUTPUTPDF = REVIEWOUTPUTHTML = REVIEWOUTPUTMD = ''
 
 
 def usage():
@@ -169,8 +160,14 @@ def parseConfig(configfile):
     global SOURCEEMAIL
     global DESTHOMEEMAIL
     global DESTWORKEMAIL
-    global REVIEWOUTPUTTYPE
     global REVIEWPATH
+    global REVIEWAGENDA
+    global REVIEWPROJECTS
+    global REVIEWCUSTOMERS
+    global REVIEWWAITING
+    global REVIEWOUTPUTPDF
+    global REVIEWOUTPUTHTML
+    global REVIEWOUTPUTMD
 
     DEBUG = Config.getboolean('tpm', 'debug')
     SENDMAIL = Config.getboolean('mail', 'sendmail')
@@ -189,8 +186,14 @@ def parseConfig(configfile):
     SOURCEEMAIL = ConfigSectionMap(Config, 'mail')['sourceemail']
     DESTHOMEEMAIL = ConfigSectionMap(Config, 'mail')['desthomeemail']
     DESTWORKEMAIL = ConfigSectionMap(Config, 'mail')['destworkemail']
-    REVIEWOUTPUTTYPE = ConfigSectionMap(Config, 'review')['outputtype']
     REVIEWPATH = ConfigSectionMap(Config, 'review')['reviewpath']
+    REVIEWAGENDA = Config.getboolean('review', 'reviewagenda')
+    REVIEWPROJECTS = Config.getboolean('review', 'reviewprojects')
+    REVIEWCUSTOMERS = Config.getboolean('review', 'reviewcustomers')
+    REVIEWWAITING = Config.getboolean('review', 'reviewwaiting')
+    REVIEWOUTPUTPDF = Config.getboolean('review', 'outputpdf')
+    REVIEWOUTPUTHTML = Config.getboolean('review', 'outputhtml')
+    REVIEWOUTPUTMD = Config.getboolean('review', 'outputmd')
 
 
 def ConfigSectionMap(Config, section):
@@ -684,21 +687,31 @@ def printOutFile(flaglist, flaglistarchive, flaglistmaybe, tpfile):
         sys.exit("creating output failed; {0}".format(exc))
 
 
-def createPushover(flaglist, destination):
+def createTaskListHighOverdue(flaglist, destination):
     try:
-        mytxt = 'Open tasks with prio high or overdue:\n'
+        mytxt = '## Open tasks with prio high or overdue:\n'
         for task in flaglist:
             if task.project == destination and \
                 (task.overdue or task.prio == 1) and task.startdate <= str(TODAY):
                     taskstring = removeTaskParts(task.taskline, '@start')
                     mytxt = '{0}{1}\n'.format(mytxt, taskstring.strip())
-        # pushover limits messages sizes to 512 characters
-        if len(mytxt) > 512:
-                mytxt = mytxt[:512]
-        sendPushover(mytxt)
-
     except Exception as exc:
-        sys.exit("creating pushover message failed; {0}".format(exc))
+        sys.exit("creating task list for High and Overdue failed; {0}".format(exc))
+    return mytxt
+
+
+def markdown2html(text):
+    return markdown2.markdown(text, extras=["toc"])
+
+
+def html2pdf(html, outfile):
+    pdf = pisa.CreatePDF(
+        cStringIO.StringIO(html),
+        file(outfile, "wb")
+        )
+    if pdf.err:
+        print("*** {0} ERRORS OCCURED".format(pdf.err))
+        sys.exit()
 
 
 def sendPushover(content):
@@ -816,61 +829,25 @@ def createMail(flaglist, destination, encrypted):
             sys.exit("creating email failed; {0}".format(exc))
 
 
-def myFirstPage(canvas, doc):
-    canvas.saveState()
-    canvas.setFont('Times-Bold', 16)
-    canvas.drawCentredString(PAGE_WIDTH/2.0, PAGE_HEIGHT-108, Title)
-    canvas.setFont('Times-Roman', 9)
-    canvas.drawString(inch, 0.75 * inch, "First Page / %s" % pageinfo)
-    canvas.restoreState()
+def createUniqueList(flaglist, element):
+    mylist = []
+    for task in flaglist:
+        if '@{0}'.format(element) in task.taskline:
+            mycontent = re.search(r'\@' + element + '\((.*?)\)', task.taskline).group(1)
+            if mycontent not in mylist:
+                mylist.append(mycontent)
+    return mylist
 
 
-def myLaterPages(canvas, doc):
-    canvas.saveState()
-    canvas.setFont('Times-Roman', 9)
-    canvas.drawString(inch, 0.75 * inch, "Page %d %s" % (doc.page, pageinfo))
-    canvas.restoreState()
-
-
-def printPDFReview(reviewfile, reviewtext):
-    doc = SimpleDocTemplate(reviewfile)
-    Story = [Spacer(1, 2*inch)]
-    style = styles["Normal"]
-    for i in range(100):
-        bogustext = ("Paragraph number %s. " % i) * 20
-        p = Paragraph(bogustext, style)
-        Story.append(p)
-        Story.append(Spacer(1, 0.2*inch))
-    doc.build(Story, onFirstPage=myFirstPage, onLaterPages=myLaterPages)
-
-
-def createProjectList(flaglist):
-    projectlist = ''
-    return projectlist
-
-
-def createPeopleList(flaglist):
-    peoplelist = ''
-    return peoplelist
-
-
-def createCustomerList(flaglist):
-    customerlist = ''
-    return customerlist
-
-
-def printMDReview(reviewfile, reviewtext):
-    pass
-
-
-def printHTMLReview(reviewfile, reviewtext):
-    pass
-
-
-def createReview(flaglist):
-    reviewtext = ''
-
-    return reviewtext
+def createTaskList(flaglist, element, headline, mylist):
+    mytasks = '\n\n## {0}\n'.format(headline)
+    for listelement in mylist:
+        mytasks = '{0}\n\n### {1}\n'.format(mytasks, listelement)
+        for task in flaglist:
+            if '@{0}'.format(element) in task.taskline:
+                if re.search(r'\@' + element + '\((.*?)\)', task.taskline).group(1) == listelement:
+                    mytasks = '{0}\n{1}'.format(mytasks, task.taskline)
+    return mytasks
 
 
 def main():
@@ -893,19 +870,40 @@ def main():
             createMail(flaglist, 'home', False)
             #createMail(flaglist, 'work', True)
         if PUSHOVER:
-            createPushover(flaglist, 'home')
+            pushovertxt = createTaskListHighOverdue(flaglist, 'home')
+            # pushover limits messages sizes to 512 characters
+            if len(pushovertxt) > 512:
+                    pushovertxt = pushovertxt[:512]
+            sendPushover(pushovertxt)
     elif modus == "review":
-        peoplelist = createPeopleList(flaglist)
-        customerlist = createCustomerList(flaglist)
-        projectlist = createProjectList(flaglist)
-        reviewfile = '{0}/{1}'.format(REVIEWPATH, TODAY)
-        #reviewtext = createReview(flaglist)
-        if REVIEWOUTPUTTYPE == 'pdf':
-            printPDFReview('{0}.pdf'.format(reviewfile), reviewtext)
-        elif REVIEWOUTPUTTYPE == 'md':
-            printMDReview('{0}.md'.format(reviewfile), reviewtext)
-        elif REVIEWOUTPUTTYPE == 'html':
-            printHTMLReview('{0}.html'.format(reviewfile), reviewtext)
+        # todo - differentiate between home and work
+        reviewfile = '{0}/Review_{1}'.format(REVIEWPATH, TODAY)
+        reviewtext = '# Review\n\n'
+        reviewtext = '{0}\n{1}'.format(reviewtext, createTaskListHighOverdue(flaglist, 'home'))
+        if REVIEWAGENDA:
+            agendalist = createUniqueList(flaglist, 'agenda')
+            agendatasks = createTaskList(flaglist, 'agenda', 'Agenda', agendalist)
+            reviewtext = '{0}\n{1}'.format(reviewtext, agendatasks)
+        if REVIEWWAITING:
+            waitinglist = createUniqueList(flaglist, 'waiting')
+            waitingtasks = createTaskList(flaglist, 'waiting', 'Waiting For', waitinglist)
+            reviewtext = '{0}\n{1}'.format(reviewtext, waitingtasks)
+        if REVIEWCUSTOMERS:
+            customerlist = createUniqueList(flaglist, 'customer')
+            customertasks = createTaskList(flaglist, 'customer', 'Customers', customerlist)
+            reviewtext = '{0}\n{1}'.format(reviewtext, customertasks)
+        if REVIEWPROJECTS:
+            projectlist = createUniqueList(flaglist, 'project')
+            projecttasks = createTaskList(flaglist, 'project', 'Projects', projectlist)
+            reviewtext = '{0}\n{1}'.format(reviewtext, projecttasks)
+
+        html = markdown2html(reviewtext)
+        # todo: einheitlich die tags filtern
+        # todo: maybe; duesoon; agenda und waiting mergen und nach personen ausgeben; upcoming tasks for this week
+        # todo: output anpassen ; größere überschriften (PDF und HTML)
+        # todo: content einfaerben - tags und tasks separat
+        # todo: html als file schreiben
+        html2pdf(html, '{0}.pdf'.format(reviewfile))
     else:
         print("modus error")
         sys.exit()
