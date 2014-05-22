@@ -16,7 +16,6 @@ from collections import namedtuple
 from operator import itemgetter
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
-# todo - only import if feature is enabled
 import markdown2
 import xhtml2pdf.pisa as pisa
 import cStringIO
@@ -64,7 +63,9 @@ DEBUG = SENDMAIL = SMTPSERVER = SMTPPORT = SMTPUSER = SMTPPASSWORD\
     = PUSHOVERTOKEN = PUSHOVERUSER = TARGETFINGERPRINT = SOURCEEMAIL\
     = DESTHOMEEMAIL = DESTWORKEMAIL = REVIEWPATH\
     = REVIEWAGENDA = REVIEWPROJECTS = REVIEWCUSTOMERS\
-    = REVIEWWAITING = REVIEWOUTPUTPDF = REVIEWOUTPUTHTML = REVIEWOUTPUTMD = ''
+    = REVIEWWAITING = REVIEWOUTPUTPDF = REVIEWOUTPUTHTML\
+    = REVIEWOUTPUTMD = REVIEWHOME = REVIEWWORK\
+    = SENDMAILHOME = SENDMAILWORK = PUSHOVERHOME = PUSHOVERWORK = ''
 
 
 def usage():
@@ -123,6 +124,30 @@ def filterWhitespaces(flaglist):
     return flaglistnew
 
 
+# filter whitespaces; print tags in a certain order; filter irregular tags
+# check tags; standardtags require at least @prio and @start
+# repeat require @prio, @start, @work or @home
+# def sanitizer(flaglist):
+#     flaglistnew = []
+#     for task in flaglist:
+#         taskstring = ' '.join(task.taskline.split())
+#         flaglistnew.append(Flaggednew(
+#             task.prio,
+#             task.startdate,
+#             task.project,
+#             taskstring,
+#             task.done,
+#             task.repeat,
+#             task.repeatinterval,
+#             task.duedate,
+#             task.duesoon,
+#             task.overdue,
+#             task.maybe
+#         ))
+#     # todo: rest here
+#     return flaglistnew
+
+
 # remove elements from a taskpaper string
 def removeTaskParts(instring, removelist):
     outstring = ''
@@ -145,6 +170,8 @@ def parseConfig(configfile):
     Config.read(configfile)
     global DEBUG
     global SENDMAIL
+    global SENDMAILHOME
+    global SENDMAILWORK
     global SMTPSERVER
     global SMTPPORT
     global SMTPUSER
@@ -168,14 +195,22 @@ def parseConfig(configfile):
     global REVIEWOUTPUTPDF
     global REVIEWOUTPUTHTML
     global REVIEWOUTPUTMD
+    global REVIEWHOME
+    global REVIEWWORK
+    global PUSHOVERHOME
+    global PUSHOVERWORK
 
     DEBUG = Config.getboolean('tpm', 'debug')
     SENDMAIL = Config.getboolean('mail', 'sendmail')
+    SENDMAILWORK = Config.getboolean('mail', 'sendmailhome')
+    SENDMAILHOME = Config.getboolean('mail', 'sendmailwork')
     SMTPSERVER = ConfigSectionMap(Config, 'mail')['smtpserver']
     SMTPPORT = Config.getint('mail', 'smtpport')
     SMTPUSER = ConfigSectionMap(Config, 'mail')['smtpuser']
     SMTPPASSWORD = ConfigSectionMap(Config, 'mail')['smtppassword']
     PUSHOVER = Config.getboolean('pushover', 'pushover')
+    PUSHOVERHOME = Config.getboolean('pushover', 'pushoverhome')
+    PUSHOVERWORK = Config.getboolean('pushover', 'pushoverwork')
     DUEDELTA = ConfigSectionMap(Config, 'tpm')['duedelta']
     DUEINTERVAL = Config.getint('tpm', 'dueinterval')
     ENCRYPTMAIL = Config.getboolean('mail', 'encryptmail')
@@ -194,6 +229,8 @@ def parseConfig(configfile):
     REVIEWOUTPUTPDF = Config.getboolean('review', 'outputpdf')
     REVIEWOUTPUTHTML = Config.getboolean('review', 'outputhtml')
     REVIEWOUTPUTMD = Config.getboolean('review', 'outputmd')
+    REVIEWHOME = Config.getboolean('review', 'reviewhome')
+    REVIEWWORK = Config.getboolean('review', 'reviewwork')
 
 
 def ConfigSectionMap(Config, section):
@@ -705,6 +742,7 @@ def markdown2html(text):
 
 
 def html2pdf(html, outfile):
+    html = html.encode("utf-8")
     pdf = pisa.CreatePDF(
         cStringIO.StringIO(html),
         file(outfile, "wb")
@@ -829,25 +867,34 @@ def createMail(flaglist, destination, encrypted):
             sys.exit("creating email failed; {0}".format(exc))
 
 
-def createUniqueList(flaglist, element):
+def createUniqueList(flaglist, element, group):
     mylist = []
     for task in flaglist:
-        if '@{0}'.format(element) in task.taskline:
+        if '@{0}'.format(element) in task.taskline and task.project == group:
             mycontent = re.search(r'\@' + element + '\((.*?)\)', task.taskline).group(1)
             if mycontent not in mylist:
                 mylist.append(mycontent)
     return mylist
 
 
-def createTaskList(flaglist, element, headline, mylist):
+def createTaskList(flaglist, element, headline, mylist, group):
     mytasks = '\n\n## {0}\n'.format(headline)
     for listelement in mylist:
         mytasks = '{0}\n\n### {1}\n'.format(mytasks, listelement)
         for task in flaglist:
-            if '@{0}'.format(element) in task.taskline:
+            if '@{0}'.format(element) in task.taskline and task.project == group:
                 if re.search(r'\@' + element + '\((.*?)\)', task.taskline).group(1) == listelement:
                     mytasks = '{0}\n{1}'.format(mytasks, task.taskline)
     return mytasks
+
+
+def writeFile(mytext, filename):
+    try:
+        outfile = open(filename, 'w')
+        print('{0}'.format(mytext), file=outfile)
+        outfile.close()
+    except Exception as exc:
+        sys.exit("writing file failed; {0}".format(exc))
 
 
 def main():
@@ -867,43 +914,60 @@ def main():
         else:
             printOutFile(flaglist, flaglistarchive, flaglistmaybe, inputfile)
         if SENDMAIL:
-            createMail(flaglist, 'home', False)
-            #createMail(flaglist, 'work', True)
+            if SENDMAILHOME:
+                createMail(flaglist, 'home', False)
+            if SENDMAILWORK:
+                createMail(flaglist, 'work', True)
         if PUSHOVER:
-            pushovertxt = createTaskListHighOverdue(flaglist, 'home')
-            # pushover limits messages sizes to 512 characters
-            if len(pushovertxt) > 512:
-                    pushovertxt = pushovertxt[:512]
-            sendPushover(pushovertxt)
+            if PUSHOVERHOME:
+                pushovertxt = createTaskListHighOverdue(flaglist, 'home')
+                # pushover limits messages sizes to 512 characters
+                if len(pushovertxt) > 512:
+                        pushovertxt = pushovertxt[:512]
+                sendPushover(pushovertxt)
+            if PUSHOVERWORK:
+                pushovertxt = createTaskListHighOverdue(flaglist, 'work')
+                # pushover limits messages sizes to 512 characters
+                if len(pushovertxt) > 512:
+                        pushovertxt = pushovertxt[:512]
+                sendPushover(pushovertxt)
     elif modus == "review":
-        # todo - differentiate between home and work
-        reviewfile = '{0}/Review_{1}'.format(REVIEWPATH, TODAY)
-        reviewtext = '# Review\n\n'
-        reviewtext = '{0}\n{1}'.format(reviewtext, createTaskListHighOverdue(flaglist, 'home'))
-        if REVIEWAGENDA:
-            agendalist = createUniqueList(flaglist, 'agenda')
-            agendatasks = createTaskList(flaglist, 'agenda', 'Agenda', agendalist)
-            reviewtext = '{0}\n{1}'.format(reviewtext, agendatasks)
-        if REVIEWWAITING:
-            waitinglist = createUniqueList(flaglist, 'waiting')
-            waitingtasks = createTaskList(flaglist, 'waiting', 'Waiting For', waitinglist)
-            reviewtext = '{0}\n{1}'.format(reviewtext, waitingtasks)
-        if REVIEWCUSTOMERS:
-            customerlist = createUniqueList(flaglist, 'customer')
-            customertasks = createTaskList(flaglist, 'customer', 'Customers', customerlist)
-            reviewtext = '{0}\n{1}'.format(reviewtext, customertasks)
-        if REVIEWPROJECTS:
-            projectlist = createUniqueList(flaglist, 'project')
-            projecttasks = createTaskList(flaglist, 'project', 'Projects', projectlist)
-            reviewtext = '{0}\n{1}'.format(reviewtext, projecttasks)
+        reviewgroup = []
+        if REVIEWHOME:
+            reviewgroup.append('home')
+        if REVIEWWORK:
+            reviewgroup.append('work')
+        for group in reviewgroup:
+            reviewfile = '{0}/Review_{1}_{2}'.format(REVIEWPATH, group, TODAY)
+            reviewtext = '# Review\n\n'
+            reviewtext = '{0}\n{1}'.format(reviewtext, createTaskListHighOverdue(flaglist, group))
+            if REVIEWAGENDA:
+                agendalist = createUniqueList(flaglist, 'agenda', group)
+                agendatasks = createTaskList(flaglist, 'agenda', 'Agenda', agendalist, group)
+                reviewtext = '{0}\n{1}'.format(reviewtext, agendatasks)
+            if REVIEWWAITING:
+                waitinglist = createUniqueList(flaglist, 'waiting', group)
+                waitingtasks = createTaskList(flaglist, 'waiting', 
+                    'Waiting For', waitinglist, group)
+                reviewtext = '{0}\n{1}'.format(reviewtext, waitingtasks)
+            if REVIEWCUSTOMERS:
+                customerlist = createUniqueList(flaglist, 'customer', group)
+                customertasks = createTaskList(flaglist, 'customer',
+                    'Customers', customerlist, group)
+                reviewtext = '{0}\n{1}'.format(reviewtext, customertasks)
+            if REVIEWPROJECTS:
+                projectlist = createUniqueList(flaglist, 'project', group)
+                projecttasks = createTaskList(flaglist, 'project', 'Projects', projectlist, group)
+                reviewtext = '{0}\n{1}'.format(reviewtext, projecttasks)
 
-        html = markdown2html(reviewtext)
-        # todo: einheitlich die tags filtern
-        # todo: maybe; duesoon; agenda und waiting mergen und nach personen ausgeben; upcoming tasks for this week
-        # todo: output anpassen ; größere überschriften (PDF und HTML)
-        # todo: content einfaerben - tags und tasks separat
-        # todo: html als file schreiben
-        html2pdf(html, '{0}.pdf'.format(reviewfile))
+            html = markdown2html(reviewtext)
+
+            if REVIEWOUTPUTMD:
+                writeFile(reviewtext, '{0}.md'.format(reviewfile))
+            if REVIEWOUTPUTHTML:
+                writeFile(html, '{0}.html'.format(reviewfile))
+            if REVIEWOUTPUTPDF:
+                html2pdf(html, '{0}.pdf'.format(reviewfile))
     else:
         print("modus error")
         sys.exit()

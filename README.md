@@ -10,6 +10,7 @@ It provides the following features:
 * flag tasks with due dates as @duesoon or @overdue (helpful for hightlighting with modified TaskPaper Theme)
 * Sort the list (primary sort criterium: @prio, secondary: @start)
 * Copy tasks with the tag @maybe in a dedicated maybe list and remove from master list
+* Provide a weekly review report (pdf, html, markdown)
 
 ## Build Status
 
@@ -17,21 +18,53 @@ It provides the following features:
 
 [![Coverage Status](https://coveralls.io/repos/mhofherr/TaskPaperManager/badge.png?branch=develop)](https://coveralls.io/r/mhofherr/TaskPaperManager?branch=develop)
 
+## Installation
+
+Follow these steps for installation:
+
+* copy `tpm.py` to a script directory on your machine
+* create a config file (content see below)
+* copy the file `requirements.txt`
+* `pip install -r requirements.txt`
+* test the script on a copy of your task file
+* if it works:
+    *  add a cron job for regular execution
+
+## Command line
+
+The script requires the following command line:  
+`tpm.py -i <inputfile> -c <configfile> -m <mode:daily|review>`
+
+The individual options are:  
+* -i: The full path to your taskpaper file
+* -c: The full path to ypur config file (contents see below)
+* -m: the mode of execution; may be either `daily` or `review`
+
+## Modes
+
+TaskPaperParser support two modes of execution:
+
+* `Daily mode`: this should be run once per day; it performs the daily maintenance tasks on your taskpaper file
+* `Review mode`: this is intended for the weekly review; it should run once per week (or whenever you want to perform a review) after the daily run
+
 ## Python versions
 
-TPM is developed on Python 2.7. Support for Python 3.4 is planned for the next minor release.
+TPM is developed on Python 2.7. Support for Python 3.4 is planned for the 1.1.0 release.
 
 ## Future features
 
 * Full support for Python 3.4
-* Adding a mode for weekly review to get a detailled breakdown of the tasks (grouped by projects, customers, waiting ...)
-* Support for comment lines
-* Add better commandline parameters (e.g. for setting the config file)
+* Support for multi-lin tasks (1-n comment lines per task)
+* sanitize the tags: bring the tags in a fixed order; detection malformed/missing tags
+* support pgp/mime for sending encrypted emails (to support encrypted html emails)
+* provide a pypi package
+* Technical: change to sqlite in-memory database for data management
 
 ## Current limitations
 
 * One task - one line: comment line for tasks are currently not supported
-* Stacked projects: there s no multi-level support of projects
+* Stacked projects: there is no multi-level support of projects
+
 
 ## Configuration
 
@@ -44,10 +77,12 @@ The variable parameters are configured via a separate config file (tpm.cfg):
 
     [mail]
     sendmail: True
-    smtpserver = <FQDN of your smtp server>
-    smtpport = <listening port of your smtp server>
-    smtpuser = <your user on the server>
-    smtppassword = <your password>
+    sendmailhome: True
+    sendmailwork: False
+    smtpserver: <FQDN of your smtp server>
+    smtpport: <listening port of your smtp server>
+    smtpuser: <your user on the server>
+    smtppassword: <your password>
     sourceemail: <sender mail address>
     destworkemail: <receiver mail address; work>
     desthomeemail: <receiver mail address; home>
@@ -57,16 +92,56 @@ The variable parameters are configured via a separate config file (tpm.cfg):
 
     [pushover]
     pushover: True
+    pushoverhome: True
+    pushoverwork: False
     pushovertoken: <application token>
     pushoveruser: <user string>
 
     [review]
-    outputtype: <pdf or md; pdf for ... well ... pdf and md for markdown>
-    reviewpath: <Path for PDF output when started in review mode>
+    reviewwork: True
+    reviewhome: True
+    outputpdf: True
+    outputhtml: True
+    outputmd: True
+    reviewpath: <path to save the review files>
+    reviewagenda: True
+    reviewprojects: True
+    reviewcustomers: True
+    reviewwaiting: True
 
-*dueinterval:* all tasks will be tagged as @duesoon when today is x days (or whatever you define for *duedelta*) before the duedate (defined in @due(...))
+### Parameter Explanations
 
-*debug:* When enabling debug mode the script will not modify your tasklist but will print instead debug output. This has no influence on sending email or sending pushover messages.
+* **debug**: When enabling debug mode the script will not modify your tasklist but will print instead debug output. This has no influence on sending email or sending pushover messages.
+* **dueinterval**: all tasks will be tagged as @duesoon when today is x days (or whatever you define for *duedelta*) before the duedate (defined in @due(...))
+* **duedelta**: unit for *dueinterval*; may be `days`, `weeks` or `months` 
+* **sendmail**: Do you want to get a daily overview for your tasks by mail? 
+* **sendmailhome**: For your home tasks?
+* **sendmailwork**: For your works tasks?
+* **smtpserver**: The FQDN of your smtp server 
+* **smtpport**: The listening port of your smtp server
+* **smtpuser**: Username
+* **smtppassword**: Password
+* **sourceemail**: The sender mail address
+* **destworkemail**: The mail address for the work email
+* **desthomeemail**: The mail address for the home email
+* **encryptmail**: Do you want to encrypt your email? Requires a working gpg-setup
+* **gnupghome**: The path to your .gnupg directory
+* **targetfingerprint**: the fingerprint for the recipient key
+* **pushover**: Do you want to get a daily overview for your tasks by mail? 
+* **pushoverhome**: For your home tasks?
+* **pushoverwork**: For your works tasks?
+* **pushovertoken**: Your application token for pushover
+* **pushoveruser**: Your user token for pushover
+* **reviewwork**: Review mode only: include work tasks?
+* **reviewhome**: Review mode only: include home tasks?
+* **outputpdf**: Create the review in PDF?
+* **outputhtml**: Create the review in HTML?
+* **outputmd**: Create the review in Markdown text?
+* **reviewpath**: The directory where your review files will be stored
+* **reviewagenda**: Include an overview for @agenda?
+* **reviewprojects**: Include an overview for @project?
+* **reviewcustomers**:  Include an overview for @customer?
+* **reviewwaiting**: Include an overview for @waiting?
 
 ## Supported tags
 The following tags are actively used in TPM:
@@ -136,6 +211,13 @@ Adding tags by hand can be quite tedious, so KeyboardMaestro comes to the rescue
 Do you  have questions or comments about `TaskPaperManager`? Contact me via [taskpaper@mhofherr.de](mailto:taskpaper@mhofherr.de) or [twitter](https://twitter.com/MatthiasHofherr).
 
 ## Changelog
+
+### Version 1.0.0
+
+* Added review mode
+* Added proper command line syntax
+* enhanced config file
+* heavy refactoring and bug fixing
 
 ### Version 0.9.0
 
