@@ -890,6 +890,7 @@ def createTaskList(flaglist, element, headline, mylist, group):
 
 def writeFile(mytext, filename):
     try:
+        mytext = mytext.encode("utf-8")
         outfile = open(filename, 'w')
         print('{0}'.format(mytext), file=outfile)
         outfile.close()
