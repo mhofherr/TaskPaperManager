@@ -9,7 +9,7 @@ now completely re-written and modified for my own requirements
 License: GPL v3 (for details see LICENSE file)
 """
 
-from __future__ import (absolute_import, division, print_function)
+from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 from datetime import datetime, timedelta
 from collections import namedtuple
@@ -202,8 +202,8 @@ def parseConfig(configfile):
 
     DEBUG = Config.getboolean('tpm', 'debug')
     SENDMAIL = Config.getboolean('mail', 'sendmail')
-    SENDMAILWORK = Config.getboolean('mail', 'sendmailhome')
-    SENDMAILHOME = Config.getboolean('mail', 'sendmailwork')
+    SENDMAILWORK = Config.getboolean('mail', 'sendmailwork')
+    SENDMAILHOME = Config.getboolean('mail', 'sendmailhome')
     SMTPSERVER = ConfigSectionMap(Config, 'mail')['smtpserver']
     SMTPPORT = Config.getint('mail', 'smtpport')
     SMTPUSER = ConfigSectionMap(Config, 'mail')['smtpuser']
@@ -264,7 +264,7 @@ def parseInput(tpfile):
         project = ''
 
         for line in tplines:
-            ####line = line.decode("utf-8")
+            line = line.decode("utf-8")
             try:
                 done = False
                 repeat = False
@@ -755,6 +755,7 @@ def html2pdf(html, outfile):
 def sendPushover(content):
     import httplib
     import urllib
+    content = content.encode("utf-8")
     try:
         conn = httplib.HTTPSConnection("api.pushover.net:443")
         conn.request("POST", "/1/messages.json",
@@ -763,8 +764,8 @@ def sendPushover(content):
                 "user": PUSHOVERUSER,
                 "message": content,
             }), {"Content-type": "application/x-www-form-urlencoded"})
+        print('pushover-funct')
         conn.getresponse()
-
     except Exception as exc:
         sys.exit("sending pushover message failed; {0}".format(exc))
 
@@ -772,7 +773,7 @@ def sendPushover(content):
 def sendMail(content, subject, sender, receiver, text_subtype, encrypted):
     import smtplib
     from email.mime.text import MIMEText
-    ###content = content.encode("utf-8")
+    content = content.encode("utf-8")
     try:
         if encrypted is False:
             msg = MIMEText(content, text_subtype)
