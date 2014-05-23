@@ -124,30 +124,6 @@ def filterWhitespaces(flaglist):
     return flaglistnew
 
 
-# filter whitespaces; print tags in a certain order; filter irregular tags
-# check tags; standardtags require at least @prio and @start
-# repeat require @prio, @start, @work or @home
-# def sanitizer(flaglist):
-#     flaglistnew = []
-#     for task in flaglist:
-#         taskstring = ' '.join(task.taskline.split())
-#         flaglistnew.append(Flaggednew(
-#             task.prio,
-#             task.startdate,
-#             task.project,
-#             taskstring,
-#             task.done,
-#             task.repeat,
-#             task.repeatinterval,
-#             task.duedate,
-#             task.duesoon,
-#             task.overdue,
-#             task.maybe
-#         ))
-#     # todo: rest here
-#     return flaglistnew
-
-
 # remove elements from a taskpaper string
 def removeTaskParts(instring, removelist):
     outstring = ''
@@ -439,8 +415,8 @@ def archiveDone(flaglist):
     try:
         for task in flaglist:
             if task.done:
-                #if DEBUG:
-                #    printDebugOutput(flaglist, 'BeforeDone')
+                if DEBUG:
+                    printDebugOutput(flaglist, 'BeforeDone')
                 taskstring = removeTaskParts(task.taskline, '@done')
                 newtask = '{0} @project({1}) @done({2})'.format(taskstring, task.project, DAYBEFORE)
                 flaglistarchive.append(Flaggedarchive(
@@ -482,8 +458,8 @@ def archiveMaybe(flaglist):
 
     for task in flaglist:
         if task.maybe:
-            #if DEBUG:
-            #    printDebugOutput(flaglist, 'Maybe')
+            if DEBUG:
+                printDebugOutput(flaglist, 'Maybe')
             taskstring = removeTaskParts(task.taskline, '@maybe @start @due @prio @project')
             newtask = '{0} @project({1})'.format(taskstring, task.project)
             flaglistmaybe.append(Flaggedmaybe(
@@ -620,8 +596,8 @@ def setRepeat(flaglist):
                 task.overdue,
                 task.maybe,
             ))
-    #if DEBUG:
-    #    printDebugOutput(flaglist, 'AfterRepeat')
+    if DEBUG:
+        printDebugOutput(flaglist, 'AfterRepeat')
     return flaglistnew
 
 
@@ -950,7 +926,7 @@ def main():
                 reviewtext = '{0}\n{1}'.format(reviewtext, agendatasks)
             if REVIEWWAITING:
                 waitinglist = createUniqueList(flaglist, 'waiting', group)
-                waitingtasks = createTaskList(flaglist, 'waiting', 
+                waitingtasks = createTaskList(flaglist, 'waiting',
                     'Waiting For', waitinglist, group)
                 reviewtext = '{0}\n{1}'.format(reviewtext, waitingtasks)
             if REVIEWCUSTOMERS:
