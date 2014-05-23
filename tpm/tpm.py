@@ -738,7 +738,8 @@ def createTaskListHighOverdue(flaglist, destination):
 
 
 def markdown2html(text):
-    return markdown2.markdown(text, extras=["toc"])
+    text = text.encode("utf-8")
+    return markdown2.markdown(text)
 
 
 def html2pdf(html, outfile):
@@ -893,7 +894,7 @@ def writeFile(mytext, filename):
     try:
         mytext = mytext.encode("utf-8")
         outfile = open(filename, 'w')
-        print('{0}'.format(mytext), file=outfile)
+        outfile.write(b'{0}'.format(mytext))
         outfile.close()
     except Exception as exc:
         sys.exit("writing file failed; {0}".format(exc))
