@@ -24,6 +24,8 @@ import getopt
 import shutil
 import sys
 import re
+import sqlite3
+
 
 """Data structure
 prio: priority of the task - high, medium or low; mapped to 1, 2 or 3
@@ -39,6 +41,31 @@ repeatinterval: the repeat inteval is given by a number followed by an interval 
 duedate: same format as startdate
 duesoon: boolean; true if today is duedate minus DUEDELTA in DUEINTERVAL (constants) or less
 overdue: boolean; true if today is after duedate"""
+
+
+# create in-memory db instance
+conn = sqlite3.connect(':memory:')
+cur = conn.cursor()
+cur.execute('''CREATE TABLE tasks(
+    taskid INTEGER PRIMARY KEY,
+    prio INTEGER,
+    startdate TEXT,
+    project TEXT,
+    taskline TEXT,
+    done INTEGER,
+    repeat INTEGER,
+    repeatinterval text,
+    duedate TEXT,
+    duesoon INTEGER,
+    overdue INTEGER,
+    maybe INTEGER
+    )''')
+cur.execute('''CREATE TABLE comments(
+    commentid INTEGER PRIMARY KEY,
+    taskid INTEGER,
+    commentline text,
+    FOREIGN KEY(taskid) REFERENCES tasks(taskid)
+    )''')
 
 Flagged = Flaggednew = Flaggedarchive = Flaggedmaybe = namedtuple('Flagged', [
     'prio',
@@ -144,6 +171,7 @@ def parseConfig(configfile):
     # set correct path if not in same directory as script
     Config = ConfigParser.ConfigParser()
     Config.read(configfile)
+
     global DEBUG
     global SENDMAIL
     global SENDMAILHOME
@@ -229,6 +257,80 @@ def printDebugOutput(flaglist, prepend):
             prepend, task.prio, task.startdate, task.project, task.taskline,
             task.done, task.repeat, task.repeatinterval,
             task.duesoon, task.overdue, task.maybe))
+
+
+def parseInputDB(tpfile):
+    try:
+        with open(tpfile, 'rb') as f:
+            tplines = f.readlines()
+        errlist = []
+        project = ''
+
+        for line in tplines:
+            line = line.decode("utf-8")
+            try:
+                done = False
+                repeat = False
+                repeatinterval = '-'
+                duedate = '2999-12-31'
+                duesoon = False
+                overdue = False
+                maybe = False
+
+                if not line.strip():
+                    continue
+                if line.strip() == '-':
+                    continue
+                if ':\n' in line:
+                    project = line.strip()[:-1]
+                    continue
+                if '@done' in line:
+                    done = True
+                if '@maybe' in line:
+                    maybe = True
+                if '@repeat' in line:
+                    repeat = True
+                    repeatinterval = re.search(r'\@repeat\((.*?)\)', line).group(1)
+                if '@due' in line:
+                    duedate = re.search(r'\@due\((.*?)\)', line).group(1)
+                    duealert = datetime.date(parser.parse(duedate)) \
+                        - timedelta(**{DUEDELTA: DUEINTERVAL})
+                    if duealert <= TODAY \
+                            <= datetime.date(parser.parse(duedate)):
+                        duesoon = True
+                    if datetime.date(parser.parse(duedate)) < TODAY:
+                        overdue = True
+                if '@start' in line and '@prio' in line:
+                    priotag = re.search(r'\@prio\((.*?)\)', line).group(1)
+                    if priotag == 'high':
+                        priotag = 1
+                    elif priotag == 'medium':
+                        priotag = 2
+                    elif priotag == 'low':
+                        priotag = 3
+                    starttag = re.search(r'\@start\((.*?)\)', line).group(1)
+                    try:
+                        cur.execute("insert into tasks (prio, startdate, project, taskline, done,\
+                            repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
+                            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            ( priotag, starttag, project, line.strip(), done, repeat,\
+                            repeatinterval, duedate, duesoon, overdue, maybe))
+                    except sqlite3.Error as e:
+                        sys.exit("An error occurred: {0}".format(e.args[0]))
+                else:
+                    try:
+                        cur.execute("insert into tasks (prio, startdate, project, taskline, done,\
+                            repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
+                            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            ( NULL, NULL, project, line.strip(), done, repeat,\
+                            repeatinterval, duedate, duesoon, overdue, maybe))
+                    except sqlite3.Error as e:
+                        sys.exit("An error occurred: {0}".format(e.args[0]))
+            except Exception as e:
+                errlist.append((line, e))
+        f.close()
+    except Exception as exc:
+        sys.exit("parsing input file to db failed; {0}".format(exc))
 
 
 def parseInput(tpfile):
@@ -415,8 +517,54 @@ def archiveDone(flaglist):
     try:
         for task in flaglist:
             if task.done:
-                if DEBUG:
-                    printDebugOutput(flaglist, 'BeforeDone')
+                #if DEBUG:
+                #    printDebugOutput(flaglist, 'BeforeDone')
+                taskstring = removeTaskParts(task.taskline, '@done')
+                newtask = '{0} @project({1}) @done({2})'.format(taskstring, task.project, DAYBEFORE)
+                flaglistarchive.append(Flaggedarchive(
+                    task.prio,
+                    task.startdate,
+                    'Archive',
+                    newtask,
+                    task.done,
+                    task.repeat,
+                    task.repeatinterval,
+                    task.duedate,
+                    task.duesoon,
+                    task.overdue,
+                    task.maybe,
+                ))
+            else:
+                flaglistnew.append(Flaggednew(
+                    task.prio,
+                    task.startdate,
+                    task.project,
+                    task.taskline,
+                    task.done,
+                    task.repeat,
+                    task.repeatinterval,
+                    task.duedate,
+                    task.duesoon,
+                    task.overdue,
+                    task.maybe,
+                ))
+        return (flaglistnew, flaglistarchive)
+    except Exception as exc:
+        sys.exit("archiving of @done failed; {0}".format(exc))
+
+
+# check @done and move to archive file
+def archiveDoneDB():
+    flaglistnew = []
+    flaglistarchive = []
+    try:
+        for row in conn.execute('SELECT * FROM tasks where done=1'):
+            print('DB: {0}'.format(row))
+
+        for task in flaglist:
+            if task.done:
+                #if DEBUG:
+                #    printDebugOutput(flaglist, 'BeforeDone')
                 taskstring = removeTaskParts(task.taskline, '@done')
                 newtask = '{0} @project({1}) @done({2})'.format(taskstring, task.project, DAYBEFORE)
                 flaglistarchive.append(Flaggedarchive(
@@ -458,8 +606,8 @@ def archiveMaybe(flaglist):
 
     for task in flaglist:
         if task.maybe:
-            if DEBUG:
-                printDebugOutput(flaglist, 'Maybe')
+            #if DEBUG:
+            #    printDebugOutput(flaglist, 'Maybe')
             taskstring = removeTaskParts(task.taskline, '@maybe @start @due @prio @project')
             newtask = '{0} @project({1})'.format(taskstring, task.project)
             flaglistmaybe.append(Flaggedmaybe(
@@ -596,8 +744,8 @@ def setRepeat(flaglist):
                 task.overdue,
                 task.maybe,
             ))
-    if DEBUG:
-        printDebugOutput(flaglist, 'AfterRepeat')
+    #if DEBUG:
+    #    printDebugOutput(flaglist, 'AfterRepeat')
     return flaglistnew
 
 
@@ -879,7 +1027,12 @@ def writeFile(mytext, filename):
 def main():
     (inputfile, configfile, modus) = parseArgs(sys.argv[1:])
     parseConfig(configfile)
+
     flaglist = parseInput(inputfile)
+    parseInputDB(inputfile)
+    #for row in conn.execute('SELECT * FROM tasks'):
+    #    print('DB: {0}'.format(row))
+
     if modus == "daily":
         (flaglist, flaglistarchive) = archiveDone(flaglist)
         (flaglist, flaglistmaybe) = archiveMaybe(flaglist)
