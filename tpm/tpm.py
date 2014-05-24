@@ -654,47 +654,50 @@ def printOutFileDebug(flaglist, flaglistarchive, flaglistmaybe, tpfile):
 def printOutFile(flaglist, flaglistarchive, flaglistmaybe, tpfile):
     try:
         shutil.move(tpfile, '{0}backup/todo_{1}.txt'.format(tpfile[:-8], TODAY))
-        appendfilearchive = open('{0}archive.txt'.format(tpfile[:-8]), 'a')
-        appendfilemaybe = open('{0}maybe.txt'.format(tpfile[:-8]), 'a')
 
-        outfile = open(tpfile, 'w')
-
-        print('work:', file=outfile)
+        mytxt = ''
+        mytxt = 'work:\n'
         for task in flaglist:
             if task.project == 'work':
-                print('\t{0}'.format(task.taskline), file=outfile)
+                mytxt = '{0}\t{1}\n'.format(mytxt, task.taskline)
 
-        print('\nhome:', file=outfile)
+        mytxt = '{0}\nhome:\n'.format(mytxt)
 
         for task in flaglist:
             if task.project == 'home':
-                print('\t{0}'.format(task.taskline), file=outfile)
+                mytxt = '{0}\t{1}\n'.format(mytxt, task.taskline)
 
-        print('\nRepeat:', file=outfile)
+        mytxt = '{0}\nRepeat:\n'.format(mytxt)
 
         for task in flaglist:
             if task.project == 'Repeat':
-                print('\t{0}'.format(task.taskline), file=outfile)
+                mytxt = '{0}\t{1}\n'.format(mytxt, task.taskline)
 
-        print('\nArchive:', file=outfile)
+        mytxt = '{0}\nArchive:\n'.format(mytxt)
 
-        print('\nINBOX:', file=outfile)
+        mytxt = '{0}\nINBOX:\n'.format(mytxt)
 
         for task in flaglist:
             if task.project == 'INBOX':
-                print('\t{0}'.format(task.taskline), file=outfile)
+                mytxt = '{0}\t{1}\n'.format(mytxt, task.taskline)
 
-        print('\n', file=outfile)
+        mytxt = '{0}\n\n'.format(mytxt)
 
+        mytxtdone = ''
         # append all done-files to archive-file
         for task in flaglistarchive:
             if task.project == 'Archive':
-                print('\t{0}'.format(task.taskline), file=appendfilearchive)
+                mytxtdone = '{0}\t{1}\n'.format(mytxtdone, task.taskline)
 
+        mytxtmaybe = ''
         # append all maybe-files to maybe.txt
         for task in flaglistmaybe:
             if task.project == 'Maybe':
-                print('\t{0}'.format(task.taskline), file=appendfilemaybe)
+                mytxtmaybe = '{0}\t{1}\n'.format(mytxtmaybe, task.taskline)
+
+        writeFile(mytxt, tpfile)
+        appendFile(mytxtdone, '{0}archive.txt'.format(tpfile[:-8]))
+        appendFile(mytxtmaybe, '{0}maybe.txt'.format(tpfile[:-8]))
 
     except Exception as exc:
         sys.exit("creating output failed; {0}".format(exc))
@@ -741,7 +744,6 @@ def sendPushover(content):
                 "user": PUSHOVERUSER,
                 "message": content,
             }), {"Content-type": "application/x-www-form-urlencoded"})
-        print('pushover-funct')
         conn.getresponse()
     except Exception as exc:
         sys.exit("sending pushover message failed; {0}".format(exc))
@@ -874,6 +876,16 @@ def writeFile(mytext, filename):
         outfile.close()
     except Exception as exc:
         sys.exit("writing file failed; {0}".format(exc))
+
+
+def appendFile(mytext, filename):
+    try:
+        mytext = mytext.encode("utf-8")
+        outfile = open(filename, 'a')
+        outfile.write(b'{0}'.format(mytext))
+        outfile.close()
+    except Exception as exc:
+        sys.exit("appending file failed; {0}".format(exc))
 
 
 def main():
