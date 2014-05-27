@@ -12,8 +12,6 @@ License: GPL v3 (for details see LICENSE file)
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 from datetime import datetime, timedelta
-from collections import namedtuple
-from operator import itemgetter
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
 import markdown2
@@ -42,20 +40,6 @@ duedate: same format as startdate
 duesoon: boolean; true if today is duedate minus DUEDELTA in DUEINTERVAL (constants) or less
 overdue: boolean; true if today is after duedate"""
 
-
-Flagged = Flaggednew = Flaggedarchive = Flaggedmaybe = namedtuple('Flagged', [
-    'prio',
-    'startdate',
-    'project',
-    'taskline',
-    'done',
-    'repeat',
-    'repeatinterval',
-    'duedate',
-    'duesoon',
-    'overdue',
-    'maybe',
-])
 
 TODAY = datetime.date(datetime.now())
 DAYBEFORE = TODAY - timedelta(days=1)
@@ -135,27 +119,6 @@ def parseArgs(argv):
         usage()
         sys.exit()
     return (inputfile, configfile, modus)
-
-
-# filter unnecessary spaces
-def filterWhitespaces(flaglist):
-    flaglistnew = []
-    for task in flaglist:
-        taskstring = ' '.join(task.taskline.split())
-        flaglistnew.append(Flaggednew(
-            task.prio,
-            task.startdate,
-            task.project,
-            taskstring,
-            task.done,
-            task.repeat,
-            task.repeatinterval,
-            task.duedate,
-            task.duesoon,
-            task.overdue,
-            task.maybe
-        ))
-    return flaglistnew
 
 
 # filter unnecessary spaces
@@ -272,17 +235,22 @@ def ConfigSectionMap(Config, section):
     return dict1
 
 
-def printDebugOutput(flaglist, prepend):
-    for task in flaglist:
-        print("{0}: {1} | {2} | {3} | {4} | {5} | {6} | {7} | {8} | {9} | {10}".format(
-            prepend, task.prio, task.startdate, task.project, task.taskline,
-            task.done, task.repeat, task.repeatinterval,
-            task.duesoon, task.overdue, task.maybe))
-
-
-def parseInputDB(tpfile, conn):
+def printDebugOutput(con, prepend):
     try:
-        cur = conn.cursor()
+        cursel = con.cursor()
+        cursel.execute("SELECT prio, startdate, project, taskline, done, repeat,\
+            repeatinterval, duedate, duesoon, overdue, maybe FROM tasks")
+        for row in cursel:
+            print("{0}: {1} | {2} | {3} | {4} | {5} | {6} | {7} | {8} | {9} | {10} | {11}".format(
+                prepend, row[0], row[1], row[2], row[3],
+                row[4], row[5], row[6], row[7], row[8], row[9], row[10], row[11]))
+    except sqlite3.Error as e:
+        sys.exit("An error occurred: {0}".format(e.args[0]))
+
+
+def parseInputDB(tpfile, con):
+    try:
+        cur = con.cursor()
         with open(tpfile, 'rb') as f:
             tplines = f.readlines()
         errlist = []
@@ -355,224 +323,35 @@ def parseInputDB(tpfile, conn):
         sys.exit("parsing input file to db failed; {0}".format(exc))
 
 
-def parseInput(tpfile):
-    try:
-        with open(tpfile, 'rb') as f:
-            tplines = f.readlines()
-        flaglist = []
-        errlist = []
-        project = ''
-
-        for line in tplines:
-            line = line.decode("utf-8")
-            try:
-                done = False
-                repeat = False
-                repeatinterval = '-'
-                duedate = '2999-12-31'
-                duesoon = False
-                overdue = False
-                maybe = False
-
-                if not line.strip():
-                    continue
-                if line.strip() == '-':
-                    continue
-                if ':\n' in line:
-                    project = line.strip()[:-1]
-                    continue
-                if '@done' in line:
-                    done = True
-                if '@maybe' in line:
-                    maybe = True
-                if '@repeat' in line:
-                    repeat = True
-                    repeatinterval = re.search(r'\@repeat\((.*?)\)', line).group(1)
-                if '@due' in line:
-                    duedate = re.search(r'\@due\((.*?)\)', line).group(1)
-                    duealert = datetime.date(parser.parse(duedate)) \
-                        - timedelta(**{DUEDELTA: DUEINTERVAL})
-                    if duealert <= TODAY \
-                            <= datetime.date(parser.parse(duedate)):
-                        duesoon = True
-                    if datetime.date(parser.parse(duedate)) < TODAY:
-                        overdue = True
-                if '@start' in line and '@prio' in line:
-                    priotag = re.search(r'\@prio\((.*?)\)', line).group(1)
-                    if priotag == 'high':
-                        priotag = 1
-                    elif priotag == 'medium':
-                        priotag = 2
-                    elif priotag == 'low':
-                        priotag = 3
-                    starttag = re.search(r'\@start\((.*?)\)', line).group(1)
-                    flaglist.append(Flagged(
-                        priotag,
-                        starttag,
-                        project,
-                        line.strip(),
-                        done,
-                        repeat,
-                        repeatinterval,
-                        duedate,
-                        duesoon,
-                        overdue,
-                        maybe
-                    ))
-                else:
-                    flaglist.append(Flagged(
-                        '-',
-                        '-',
-                        project,
-                        line.strip(),
-                        done,
-                        repeat,
-                        repeatinterval,
-                        duedate,
-                        duesoon,
-                        overdue,
-                        maybe
-                    ))
-            except Exception as e:
-                errlist.append((line, e))
-        f.close()
-        return flaglist
-    except Exception as exc:
-        sys.exit("parsing input file failed; {0}".format(exc))
-
-
 # remove overdue and duesoon tags
-def removeTags(flaglist):
+def removeTags(con):
     try:
-        flaglistnew = []
-        for task in flaglist:
-            if '@overdue' in task.taskline or '@duesoon' in task.taskline:
-                taskstring = removeTaskParts(task.taskline, '@overdue @duesoon')
-                flaglistnew.append(Flaggednew(
-                    task.prio,
-                    task.startdate,
-                    task.project,
-                    taskstring,
-                    task.done,
-                    task.repeat,
-                    task.repeatinterval,
-                    task.duedate,
-                    task.duesoon,
-                    task.overdue,
-                    task.maybe
-                ))
-            else:
-                flaglistnew.append(Flaggednew(
-                    task.prio,
-                    task.startdate,
-                    task.project,
-                    task.taskline,
-                    task.done,
-                    task.repeat,
-                    task.repeatinterval,
-                    task.duedate,
-                    task.duesoon,
-                    task.overdue,
-                    task.maybe,
-                ))
-        return flaglistnew
-    except Exception as exc:
-        sys.exit("removing tags failed; {0}".format(exc))
+        cursel = con.cursor()
+        curup = con.cursor()
+        cursel.execute("SELECT taskid, taskline FROM tasks where overdue = 1 or duesoon = 1")
+        for row in cursel:
+                taskstring = removeTaskParts(row[1], '@overdue @duesoon')
+                curup.execute("UPDATE tasks SET taskline=? WHERE taskid=?",
+                             (taskstring, row[0]))
+    except sqlite3.Error as e:
+        sys.exit("An error occurred: {0}".format(e.args[0]))
 
 
 # set overdue and duesoon tags
-def setTags(flaglist):
+def setTags(con):
     try:
-        flaglistnew = []
-        for task in flaglist:
-            if task.overdue:
-                flaglistnew.append(Flaggednew(
-                    task.prio,
-                    task.startdate,
-                    task.project,
-                    '{0} @overdue'.format(task.taskline),
-                    task.done,
-                    task.repeat,
-                    task.repeatinterval,
-                    task.duedate,
-                    task.duesoon,
-                    task.overdue,
-                    task.maybe,
-                ))
-            elif task.duesoon:
-                flaglistnew.append(Flaggednew(
-                    task.prio,
-                    task.startdate,
-                    task.project,
-                    '{0} @duesoon'.format(task.taskline),
-                    task.done,
-                    task.repeat,
-                    task.repeatinterval,
-                    task.duedate,
-                    task.duesoon,
-                    task.overdue,
-                    task.maybe,
-                ))
-            else:
-                flaglistnew.append(Flaggednew(
-                    task.prio,
-                    task.startdate,
-                    task.project,
-                    task.taskline,
-                    task.done,
-                    task.repeat,
-                    task.repeatinterval,
-                    task.duedate,
-                    task.duesoon,
-                    task.overdue,
-                    task.maybe,
-                ))
-        return flaglistnew
-    except Exception as exc:
-        sys.exit("setting overdue or duesoon tags failed; {0}".format(exc))
-
-
-# check @done and move to archive file
-def archiveDone(flaglist):
-    flaglistnew = []
-    flaglistarchive = []
-    try:
-        for task in flaglist:
-            if task.done:
-                #if DEBUG:
-                #    printDebugOutput(flaglist, 'BeforeDone')
-                taskstring = removeTaskParts(task.taskline, '@done')
-                newtask = '{0} @project({1}) @done({2})'.format(taskstring, task.project, DAYBEFORE)
-                flaglistarchive.append(Flaggedarchive(
-                    task.prio,
-                    task.startdate,
-                    'Archive',
-                    newtask,
-                    task.done,
-                    task.repeat,
-                    task.repeatinterval,
-                    task.duedate,
-                    task.duesoon,
-                    task.overdue,
-                    task.maybe,
-                ))
-            else:
-                flaglistnew.append(Flaggednew(
-                    task.prio,
-                    task.startdate,
-                    task.project,
-                    task.taskline,
-                    task.done,
-                    task.repeat,
-                    task.repeatinterval,
-                    task.duedate,
-                    task.duesoon,
-                    task.overdue,
-                    task.maybe,
-                ))
-        return (flaglistnew, flaglistarchive)
-    except Exception as exc:
-        sys.exit("archiving of @done failed; {0}".format(exc))
+        cursel = con.cursor()
+        curup = con.cursor()
+        cursel.execute("SELECT taskid, taskline FROM tasks where overdue = 1")
+        for row in cursel:
+            curup.execute("UPDATE tasks SET taskline=? WHERE taskid=?",
+                         ('{0} @overdue'.format(row[1]), row[0]))
+        cursel.execute("SELECT taskid, taskline FROM tasks where duesoon = 1")
+        for row in cursel:
+            curup.execute("UPDATE tasks SET taskline=? WHERE taskid=?",
+                         ('{0} @duesoon'.format(row[1]), row[0]))
+    except sqlite3.Error as e:
+        sys.exit("An error occurred: {0}".format(e.args[0]))
 
 
 # check @done and mark for later move to archive
@@ -591,47 +370,6 @@ def archiveDoneDB(con):
         sys.exit("An error occurred: {0}".format(e.args[0]))
 
 
-# check @maybe and move to archive file (maybe)
-def archiveMaybe(flaglist):
-    flaglistnew = []
-    flaglistmaybe = []
-
-    for task in flaglist:
-        if task.maybe:
-            #if DEBUG:
-            #    printDebugOutput(flaglist, 'Maybe')
-            taskstring = removeTaskParts(task.taskline, '@maybe @start @due @prio @project')
-            newtask = '{0} @project({1})'.format(taskstring, task.project)
-            flaglistmaybe.append(Flaggedmaybe(
-                task.prio,
-                task.startdate,
-                'Maybe',
-                newtask,
-                task.done,
-                task.repeat,
-                task.repeatinterval,
-                task.duedate,
-                task.duesoon,
-                task.overdue,
-                task.maybe,
-            ))
-        else:
-            flaglistnew.append(Flaggednew(
-                task.prio,
-                task.startdate,
-                task.project,
-                task.taskline,
-                task.done,
-                task.repeat,
-                task.repeatinterval,
-                task.duedate,
-                task.duesoon,
-                task.overdue,
-                task.maybe,
-            ))
-    return (flaglistnew, flaglistmaybe)
-
-
 # check @maybe and mark for later move to maybe file
 def archiveMaybeDB(con):
     try:
@@ -645,115 +383,6 @@ def archiveMaybeDB(con):
                          (newtask, 'Maybe', row[0]))
     except sqlite3.Error as e:
         sys.exit("An error occurred: {0}".format(e.args[0]))
-
-
-# check repeat statements; instantiate new tasks if startdate + repeat interval = today
-def setRepeat(flaglist):
-    flaglistnew = []
-
-    for task in flaglist:
-        if task.project == 'Repeat' and task.repeat:
-            delta = ''
-            intervalnumber = task.repeatinterval[0]
-            typeofinterval = task.repeatinterval[1]
-            intnum = int(intervalnumber)
-            if 'd' in typeofinterval:
-                delta = 'days'
-            if 'w' in typeofinterval:
-                delta = 'weeks'
-            if 'm' in typeofinterval:
-                delta = 'month'
-            if delta == 'days' or delta == 'weeks':
-                newstartdate = \
-                    datetime.date(parser.parse(task.startdate)) \
-                    + timedelta(**{delta: intnum})
-            if delta == 'month':
-                newstartdate = \
-                    datetime.date(parser.parse(task.startdate)) \
-                    + relativedelta(months=intnum)
-
-            # instantiate anything which is older or equal than today
-            if newstartdate <= TODAY:
-                if '@home' in task.taskline:
-                    projecttag = 'home'
-                if '@work' in task.taskline:
-                    projecttag = 'work'
-
-                # get the relevant information from the task description
-                taskstring = removeTaskParts(task.taskline, '@repeat @home @work @start')
-                taskstring = '{0} @start({1})'.format(taskstring, newstartdate)
-                done = False
-                repeat = False
-                repeatinterval = '-'
-
-                # create new instance of repeat task
-
-                flaglistnew.append(Flaggednew(
-                    task.prio,
-                    str(newstartdate),
-                    projecttag,
-                    taskstring,
-                    done,
-                    repeat,
-                    repeatinterval,
-                    task.duedate,
-                    task.duesoon,
-                    task.overdue,
-                    task.maybe,
-                ))
-
-                # remove old start-date in taskstring; add newstartdate as start date instead
-                taskstring = removeTaskParts(task.taskline, '@start')
-                taskstring = '{0} @start({1})'.format(taskstring, newstartdate)
-
-                # prepare modified entry for repeat-task
-
-                flaglistnew.append(Flaggednew(
-                    task.prio,
-                    task.startdate,
-                    task.project,
-                    taskstring,
-                    task.done,
-                    task.repeat,
-                    task.repeatinterval,
-                    task.duedate,
-                    task.duesoon,
-                    task.overdue,
-                    task.maybe,
-                ))
-            else:
-
-                # write back repeat tasks with non-matching date
-                flaglistnew.append(Flaggednew(
-                    task.prio,
-                    task.startdate,
-                    task.project,
-                    task.taskline,
-                    task.done,
-                    task.repeat,
-                    task.repeatinterval,
-                    task.duedate,
-                    task.duesoon,
-                    task.overdue,
-                    task.maybe,
-                ))
-        else:
-            flaglistnew.append(Flaggednew(
-                task.prio,
-                task.startdate,
-                task.project,
-                task.taskline,
-                task.done,
-                task.repeat,
-                task.repeatinterval,
-                task.duedate,
-                task.duesoon,
-                task.overdue,
-                task.maybe,
-            ))
-    #if DEBUG:
-    #    printDebugOutput(flaglist, 'AfterRepeat')
-    return flaglistnew
 
 
 # check repeat statements; instantiate new tasks if startdate + repeat interval = today
@@ -821,56 +450,6 @@ def setRepeatDB(con):
         sys.exit("An error occurred: {0}".format(e.args[0]))
 
 
-def sortList(flaglist):
-    try:
-        # sort in following order: project (asc), prio (asc), date (desc)
-        flaglist = sorted(flaglist, key=itemgetter(Flagged._fields.index
-                ('startdate')), reverse=True)
-        flaglist = sorted(flaglist, key=itemgetter(Flagged._fields.index
-                ('project'),Flagged._fields.index('prio')))
-        return flaglist
-    except Exception as exc:
-        sys.exit("sorting list failed; {0}".format(exc))
-
-
-def printOutFileDebug(flaglist, flaglistarchive, flaglistmaybe, tpfile):
-    print('work:')
-    for task in flaglist:
-        if task.project == 'work':
-            print('\t{0}'.format(task.taskline))
-
-    print('\nhome:')
-
-    for task in flaglist:
-        if task.project == 'home':
-            print('\t{0}'.format(task.taskline))
-
-    print('\nRepeat:')
-
-    for task in flaglist:
-        if task.project == 'Repeat':
-            print('\t{0}'.format(task.taskline))
-
-    print('\nArchive:')
-
-    print('\nINBOX:')
-
-    for task in flaglist:
-        if task.project == 'INBOX':
-            print('\t{0}'.format(task.taskline))
-
-    print('\nArchive:')
-
-    for task in flaglistarchive:
-        if task.project == 'Archive':
-            print('\t{0}'.format(task.taskline))
-    print('\nMaybe:')
-
-    for task in flaglistmaybe:
-        if task.project == 'Maybe':
-            print('\t{0}'.format(task.taskline))
-
-
 def printDebug(con, tpfile):
     try:
         print('work:')
@@ -907,52 +486,6 @@ def printDebug(con, tpfile):
             print('\t{0}'.format(row[0]))
     except sqlite3.Error as e:
         sys.exit("An error occurred: {0}".format(e.args[0]))
-
-
-def createOutFile(flaglist, flaglistarchive, flaglistmaybe):
-    try:
-        mytxt = ''
-        mytxt = 'work:\n'
-        for task in flaglist:
-            if task.project == 'work':
-                mytxt = '{0}\t{1}\n'.format(mytxt, task.taskline)
-
-        mytxt = '{0}\nhome:\n'.format(mytxt)
-
-        for task in flaglist:
-            if task.project == 'home':
-                mytxt = '{0}\t{1}\n'.format(mytxt, task.taskline)
-
-        mytxt = '{0}\nRepeat:\n'.format(mytxt)
-
-        for task in flaglist:
-            if task.project == 'Repeat':
-                mytxt = '{0}\t{1}\n'.format(mytxt, task.taskline)
-
-        mytxt = '{0}\nArchive:\n'.format(mytxt)
-
-        mytxt = '{0}\nINBOX:\n'.format(mytxt)
-
-        for task in flaglist:
-            if task.project == 'INBOX':
-                mytxt = '{0}\t{1}\n'.format(mytxt, task.taskline)
-
-        mytxt = '{0}\n\n'.format(mytxt)
-
-        mytxtdone = ''
-        # append all done-files to archive-file
-        for task in flaglistarchive:
-            if task.project == 'Archive':
-                mytxtdone = '{0}\t{1}\n'.format(mytxtdone, task.taskline)
-
-        mytxtmaybe = ''
-        # append all maybe-files to maybe.txt
-        for task in flaglistmaybe:
-            if task.project == 'Maybe':
-                mytxtmaybe = '{0}\t{1}\n'.format(mytxtmaybe, task.taskline)
-    except Exception as exc:
-        sys.exit("creating output failed; {0}".format(exc))
-    return (mytxt, mytxtdone, mytxtmaybe)
 
 
 def createOutFileDB(con):
@@ -995,16 +528,26 @@ def createOutFileDB(con):
     return (mytxt, mytxtdone, mytxtmaybe)
 
 
-def createTaskListHighOverdue(flaglist, destination):
+def createTaskListHighOverdueDB(con, destination):
     try:
-        mytxt = '## Open tasks with prio high or overdue:\n'
-        for task in flaglist:
-            if task.project == destination and \
-                (task.overdue or task.prio == 1) and task.startdate <= str(TODAY):
-                    taskstring = removeTaskParts(task.taskline, '@start')
-                    mytxt = '{0}{1}\n'.format(mytxt, taskstring.strip())
-    except Exception as exc:
-        sys.exit("creating task list for High and Overdue failed; {0}".format(exc))
+        mytxt = '## Open tasks with prio high:\n'
+        cursel = con.cursor()
+        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
+            where project = ? and prio = 1 and \
+            startdate <= date( julianday(date('now'))) and done = 0 ORDER BY prio asc,\
+            startdate desc ", (destination,))
+        for row in cursel:
+            taskstring = removeTaskParts(row[0], '@start')
+            mytxt = '{0}{1}\n'.format(mytxt, taskstring.strip())
+        mytxt = '{0}\n## Open tasks - overdue:\n'.format(mytxt)
+        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
+            where project = ? and overdue = 1 and \
+            done = 0 ORDER BY prio asc, startdate desc ", (destination,))
+        for row in cursel:
+            taskstring = removeTaskParts(row[0], '@start')
+            mytxt = '{0}{1}\n'.format(mytxt, taskstring.strip())
+    except sqlite3.Error as e:
+        sys.exit("An error occurred: {0}".format(e.args[0]))
     return mytxt
 
 
@@ -1076,69 +619,6 @@ def sendMail(content, subject, sender, receiver, text_subtype, encrypted):
         sys.exit("sending email failed; {0}".format(exc))
 
 
-def createMail(flaglist, destination, encrypted):
-    if SENDMAIL:
-        try:
-            source = SOURCEEMAIL
-            desthome = DESTHOMEEMAIL
-            destwork = DESTWORKEMAIL
-
-            mytxt = '<html><head><title>Tasks for Today</title></head><body>'
-
-            mytxt = '{0}<h1>Tasks for Today</h1><p>'.format(mytxt)
-            mytxtasc = '# Tasks for Today\n'
-            mytxt = '{0}<h2>Overdue tasks</h2><p>'.format(mytxt)
-            mytxtasc = '{0}\n## Overdue tasks\n'.format(mytxtasc)
-            # Overdue
-
-            for task in flaglist:
-                if task.overdue is True and task.project == destination:
-                    taskstring = removeTaskParts(task.taskline, '@')
-                    taskstring = '{0} @due({1})'.format(taskstring, task.duedate)
-                    mytxt = '{0}<FONT COLOR="#ff0033">{1}</FONT><br/>'.format(mytxt,
-                            taskstring.strip())
-                    mytxtasc = '{0}{1}\n'.format(mytxtasc, taskstring.strip())
-
-            mytxt = '{0}<h2>Due soon tasks</h2>'.format(mytxt)
-            mytxtasc = '{0}\n## Due soon tasks\n'.format(mytxtasc)
-
-            # Due soon
-
-            for task in flaglist:
-                if task.project == destination and task.duesoon is True and task.done is False:
-                    taskstring = removeTaskParts(task.taskline, '@')
-                    taskstring = '{0} @due({1})'.format(taskstring, task.duedate)
-                    mytxt = '{0}{1}<br/>'.format(mytxt, taskstring.strip())
-                    mytxtasc = '{0}{1}\n'.format(mytxtasc, taskstring.strip())
-
-            mytxt = '{0}<h2>High priority tasks</h2><p>'.format(mytxt)
-            mytxtasc = '{0}\n## High priority tasks ##\n'.format(mytxtasc)
-
-            # All other high prio tasks
-            for task in flaglist:
-                if task.project == destination and task.prio == 1 \
-                        and task.startdate <= str(TODAY) \
-                        and (task.overdue is not True or task.duesoon is not True) \
-                        and task.done is False:
-                    taskstring = removeTaskParts(task.taskline, '@start @prio')
-                    if task.duedate != '2999-12-31':
-                        taskstring = '{0} @due({1})'.format(taskstring, task.duedate)
-                    mytxt = '{0}<FONT COLOR="#ff0033">{1}</FONT><br/>'.format(mytxt,
-                            taskstring.strip())
-                    mytxtasc = '{0}{1}\n'.format(mytxtasc, taskstring.strip())
-            mytxt = '{0}</table></body></html>'.format(mytxt)
-
-            if destination == 'home':
-                sendMail(mytxt, 'Taskpaper daily overview', source, desthome, 'html', False)
-            elif destination == 'work':
-                sendMail(mytxtasc, 'Taskpaper daily overview', source, destwork, 'text', True)
-            else:
-                raise "wrong destination"
-
-        except Exception as exc:
-            sys.exit("creating email failed; {0}".format(exc))
-
-
 def createMailDB(con, destination, encrypted):
     if SENDMAIL:
         try:
@@ -1205,24 +685,36 @@ def createMailDB(con, destination, encrypted):
             sys.exit("creating email failed; {0}".format(exc))
 
 
-def createUniqueList(flaglist, element, group):
+def createUniqueListDB(con, element, group):
     mylist = []
-    for task in flaglist:
-        if '@{0}'.format(element) in task.taskline and task.project == group:
-            mycontent = re.search(r'\@' + element + '\((.*?)\)', task.taskline).group(1)
-            if mycontent not in mylist:
-                mylist.append(mycontent)
+    try:
+        cursel = con.cursor()
+        cursel.execute("SELECT taskline, project FROM tasks\
+            where project = ? ORDER BY prio asc, startdate desc ", (group,))
+        for row in cursel:
+            if '@{0}'.format(element) in row[0]:
+                mycontent = re.search(r'\@' + element + '\((.*?)\)', row[0]).group(1)
+                if mycontent not in mylist:
+                    mylist.append(mycontent)
+    except sqlite3.Error as e:
+        sys.exit("An error occurred: {0}".format(e.args[0]))
     return mylist
 
 
-def createTaskList(flaglist, element, headline, mylist, group):
+def createTaskListDB(con, element, headline, mylist, group):
     mytasks = '\n\n## {0}\n'.format(headline)
     for listelement in mylist:
         mytasks = '{0}\n\n### {1}\n'.format(mytasks, listelement)
-        for task in flaglist:
-            if '@{0}'.format(element) in task.taskline and task.project == group:
-                if re.search(r'\@' + element + '\((.*?)\)', task.taskline).group(1) == listelement:
-                    mytasks = '{0}\n{1}'.format(mytasks, task.taskline)
+        try:
+            cursel = con.cursor()
+            cursel.execute("SELECT taskline, project FROM tasks\
+                where project = ? ORDER BY prio asc, startdate desc ", (group,))
+            for row in cursel:
+                if '@{0}'.format(element) in row[0]:
+                    if re.search(r'\@' + element + '\((.*?)\)', row[0]).group(1) == listelement:
+                        mytasks = '{0}\n{1}'.format(mytasks, row[0])
+        except sqlite3.Error as e:
+            sys.exit("An error occurred: {0}".format(e.args[0]))
     return mytasks
 
 
@@ -1239,29 +731,19 @@ def myFile(mytext, filename, mode):
 def main():
     (inputfile, configfile, modus) = parseArgs(sys.argv[1:])
     parseConfig(configfile)
-    ####flaglist = parseInput(inputfile)
     mycon = initDB()
     parseInputDB(inputfile, mycon)
 
     if modus == "daily":
-        ####(flaglist, flaglistarchive) = archiveDone(flaglist)
+        removeTags(mycon)
+        setTags(mycon)
         archiveDoneDB(mycon)
-        #(flaglist, flaglistmaybe) = archiveMaybe(flaglist)
         archiveMaybeDB(mycon)
-        #flaglist = setRepeat(flaglist)
         setRepeatDB(mycon)
-        #flaglist = sortList(flaglist)
-        #sortList(mycon)
-        # ! todo: remember to sort output later directly in select query
-        #flaglist = filterWhitespaces(flaglist)
-        #flaglistarchive = filterWhitespaces(flaglistarchive)
-        #flaglistmaybe = filterWhitespaces(flaglistmaybe)
         filterWhitespacesDB(mycon)
         if DEBUG:
-            #printOutFileDebug(flaglist, flaglistarchive, flaglistmaybe, inputfile)            
             printDebug(mycon, inputfile)
         else:
-            #(mytxt, mytxtdone, mytxtmaybe) = createOutFile(flaglist, flaglistarchive, flaglistmaybe)
             (mytxt, mytxtdone, mytxtmaybe) = createOutFileDB(mycon)
             shutil.move(inputfile, '{0}backup/todo_{1}.txt'.format(inputfile[:-8], TODAY))
             myFile(mytxt, inputfile, 'w')
@@ -1269,30 +751,18 @@ def main():
             myFile(mytxtmaybe, '{0}maybe.txt'.format(inputfile[:-8]), 'a')
         if SENDMAIL:
             if SENDMAILHOME:
-                #createMail(flaglist, 'home', False)
                 createMailDB(mycon, 'home', False)
             if SENDMAILWORK:
-                #createMail(flaglist, 'work', True)
                 createMailDB(mycon, 'work', True)
-        # mycur = mycon.cursor()
-        # mycur.execute('SELECT * FROM tasks')
-        # rows = mycur.fetchall()
-        # for r in rows:
-        #     print(r)
-        sys.exit()
-        # ! break here
-
-
-
         if PUSHOVER:
             if PUSHOVERHOME:
-                pushovertxt = createTaskListHighOverdue(flaglist, 'home')
+                pushovertxt = createTaskListHighOverdueDB(mycon, 'home')
                 # pushover limits messages sizes to 512 characters
                 if len(pushovertxt) > 512:
                         pushovertxt = pushovertxt[:512]
                 sendPushover(pushovertxt)
             if PUSHOVERWORK:
-                pushovertxt = createTaskListHighOverdue(flaglist, 'work')
+                pushovertxt = createTaskListHighOverdueDB(mycon, 'work')
                 # pushover limits messages sizes to 512 characters
                 if len(pushovertxt) > 512:
                         pushovertxt = pushovertxt[:512]
@@ -1306,24 +776,24 @@ def main():
         for group in reviewgroup:
             reviewfile = '{0}/Review_{1}_{2}'.format(REVIEWPATH, group, TODAY)
             reviewtext = '# Review\n\n'
-            reviewtext = '{0}\n{1}'.format(reviewtext, createTaskListHighOverdue(flaglist, group))
+            reviewtext = '{0}\n{1}'.format(reviewtext, createTaskListHighOverdueDB(mycon, group))
             if REVIEWAGENDA:
-                agendalist = createUniqueList(flaglist, 'agenda', group)
-                agendatasks = createTaskList(flaglist, 'agenda', 'Agenda', agendalist, group)
+                agendalist = createUniqueListDB(mycon, 'agenda', group)
+                agendatasks = createTaskListDB(mycon, 'agenda', 'Agenda', agendalist, group)
                 reviewtext = '{0}\n{1}'.format(reviewtext, agendatasks)
             if REVIEWWAITING:
-                waitinglist = createUniqueList(flaglist, 'waiting', group)
-                waitingtasks = createTaskList(flaglist, 'waiting',
+                waitinglist = createUniqueListDB(mycon, 'waiting', group)
+                waitingtasks = createTaskListDB(mycon, 'waiting',
                     'Waiting For', waitinglist, group)
                 reviewtext = '{0}\n{1}'.format(reviewtext, waitingtasks)
             if REVIEWCUSTOMERS:
-                customerlist = createUniqueList(flaglist, 'customer', group)
-                customertasks = createTaskList(flaglist, 'customer',
+                customerlist = createUniqueListDB(mycon, 'customer', group)
+                customertasks = createTaskListDB(mycon, 'customer',
                     'Customers', customerlist, group)
                 reviewtext = '{0}\n{1}'.format(reviewtext, customertasks)
             if REVIEWPROJECTS:
-                projectlist = createUniqueList(flaglist, 'project', group)
-                projecttasks = createTaskList(flaglist, 'project', 'Projects', projectlist, group)
+                projectlist = createUniqueListDB(mycon, 'project', group)
+                projecttasks = createTaskListDB(mycon, 'project', 'Projects', projectlist, group)
                 reviewtext = '{0}\n{1}'.format(reviewtext, projecttasks)
 
             html = markdown2html(reviewtext)
