@@ -58,7 +58,7 @@ DEBUG = SENDMAIL = SMTPSERVER = SMTPPORT = SMTPUSER = SMTPPASSWORD\
 # create in-memory db instance
 def initDB():
     try:
-        conn = sqlite3.connect(':memory:', isolation_level=None)
+        conn = sqlite3.connect(':memory:', isolation_level="DEFERRED")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         cur.execute('''CREATE TABLE tasks(
@@ -81,6 +81,7 @@ def initDB():
             commentline text,
             FOREIGN KEY(taskid) REFERENCES tasks(taskid)
             )''')
+        conn.commit()
     except sqlite3.Error as e:
         sys.exit("An error occurred: {0}".format(e.args[0]))
     return conn
@@ -131,6 +132,7 @@ def filterWhitespacesDB(con):
             taskstring = ' '.join(row[1].split())
             curup.execute("UPDATE tasks SET taskline=? WHERE taskid=?",
                          (taskstring, row[0]))
+        con.commit()
     except sqlite3.Error as e:
         sys.exit("An error occurred: {0}".format(e.args[0]))
 
@@ -244,6 +246,7 @@ def printDebugOutput(con, prepend):
             print("{0}: {1} | {2} | {3} | {4} | {5} | {6} | {7} | {8} | {9} | {10} | {11}".format(
                 prepend, row[0], row[1], row[2], row[3],
                 row[4], row[5], row[6], row[7], row[8], row[9], row[10], row[11]))
+        con.commit()
     except sqlite3.Error as e:
         sys.exit("An error occurred: {0}".format(e.args[0]))
 
@@ -316,6 +319,7 @@ def parseInputDB(tpfile, con):
                             repeatinterval, duedate, duesoon, overdue, maybe))
                     except sqlite3.Error as e:
                         sys.exit("An error occurred: {0}".format(e.args[0]))
+                con.commit()
             except Exception as e:
                 errlist.append((line, e))
         f.close()
@@ -333,6 +337,7 @@ def removeTags(con):
                 taskstring = removeTaskParts(row[1], '@overdue @duesoon')
                 curup.execute("UPDATE tasks SET taskline=? WHERE taskid=?",
                              (taskstring, row[0]))
+        con.commit()
     except sqlite3.Error as e:
         sys.exit("An error occurred: {0}".format(e.args[0]))
 
@@ -350,6 +355,7 @@ def setTags(con):
         for row in cursel:
             curup.execute("UPDATE tasks SET taskline=? WHERE taskid=?",
                          ('{0} @duesoon'.format(row[1]), row[0]))
+        con.commit()
     except sqlite3.Error as e:
         sys.exit("An error occurred: {0}".format(e.args[0]))
 
@@ -366,6 +372,7 @@ def archiveDoneDB(con):
             newtask = '{0} @project({1}) @done({2})'.format(taskstring, row[2], DAYBEFORE)
             curup.execute("UPDATE tasks SET taskline=?, project=? WHERE taskid=?",
                          (newtask, 'Archive', row[0]))
+        con.commit()
     except sqlite3.Error as e:
         sys.exit("An error occurred: {0}".format(e.args[0]))
 
@@ -381,6 +388,7 @@ def archiveMaybeDB(con):
             newtask = '{0} @project({1})'.format(taskstring, row[2])
             curup.execute("UPDATE tasks SET taskline=?, project=? WHERE taskid=?",
                          (newtask, 'Maybe', row[0]))
+        con.commit()
     except sqlite3.Error as e:
         sys.exit("An error occurred: {0}".format(e.args[0]))
 
@@ -445,7 +453,7 @@ def setRepeatDB(con):
                                  (taskstring, row[5]))
                 except sqlite3.Error as e:
                     sys.exit("An error occurred: {0}".format(e.args[0]))
-
+        con.commit()
     except sqlite3.Error as e:
         sys.exit("An error occurred: {0}".format(e.args[0]))
 
@@ -484,6 +492,7 @@ def printDebug(con, tpfile):
             where project = 'Maybe' ORDER BY prio asc, startdate desc ")
         for row in cursel:
             print('\t{0}'.format(row[0]))
+        con.commit()
     except sqlite3.Error as e:
         sys.exit("An error occurred: {0}".format(e.args[0]))
 
@@ -523,6 +532,7 @@ def createOutFileDB(con):
             where project = 'Maybe' ORDER BY prio asc, startdate desc ")
         for row in cursel:
             mytxtmaybe = '{0}\t{1}\n'.format(mytxtmaybe, row[0])
+        con.commit()
     except sqlite3.Error as e:
         sys.exit("An error occurred: {0}".format(e.args[0]))
     return (mytxt, mytxtdone, mytxtmaybe)
@@ -546,6 +556,7 @@ def createTaskListHighOverdueDB(con, destination):
         for row in cursel:
             taskstring = removeTaskParts(row[0], '@start')
             mytxt = '{0}{1}\n'.format(mytxt, taskstring.strip())
+        con.commit()
     except sqlite3.Error as e:
         sys.exit("An error occurred: {0}".format(e.args[0]))
     return mytxt
