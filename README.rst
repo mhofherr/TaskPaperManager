@@ -302,6 +302,17 @@ via taskpaper@mhofherr.de or
 Changelog
 ---------
 
+Version 1.1.0
+~~~~~~~~~~~~~
+
+-  Moved from namedTuples to sqlite3 in-memory database
+-  prepared support for multiline tasks (a task line with multiple
+   comment lines)
+-  bugfix: @repeat only considered 1st digit of repeat interval; now
+   support multi-digits
+-  more tests
+-  some fefactoring
+
 Version 1.0.0
 ~~~~~~~~~~~~~
 

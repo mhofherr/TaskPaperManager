@@ -11,6 +11,7 @@ html5lib==0.999
 markdown2==2.2.1
 pkginfo==1.1
 py==1.4.20
+pysqlite==2.6.3
 pytest==2.5.2
 pytest-cov==1.6
 python-dateutil==2.2

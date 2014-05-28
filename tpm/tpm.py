@@ -123,7 +123,7 @@ def parseArgs(argv):
 
 
 # filter unnecessary spaces
-def filterWhitespacesDB(con):
+def filterWhitespaces(con):
     try:
         cursel = con.cursor()
         curup = con.cursor()
@@ -152,9 +152,8 @@ def removeTaskParts(instring, removelist):
 
 
 def parseConfig(configfile):
-    # sets the config parameters as global variables
-    # tpm.cfg config file required - for details see README.md
-    # set correct path if not in same directory as script
+    """sets the config parameters as global variables"""
+
     Config = ConfigParser.ConfigParser()
     Config.read(configfile)
 
@@ -222,6 +221,13 @@ def parseConfig(configfile):
     REVIEWHOME = Config.getboolean('review', 'reviewhome')
     REVIEWWORK = Config.getboolean('review', 'reviewwork')
 
+    return (DEBUG, SENDMAIL, SENDMAILHOME, SENDMAILWORK, SMTPSERVER, SMTPPORT,
+            SMTPUSER, SMTPPASSWORD, PUSHOVER, DUEDELTA, DUEINTERVAL, ENCRYPTMAIL,
+            GNUPGHOME, PUSHOVERTOKEN, PUSHOVERUSER, TARGETFINGERPRINT, SOURCEEMAIL,
+            DESTHOMEEMAIL, DESTWORKEMAIL, REVIEWPATH, REVIEWAGENDA, REVIEWPROJECTS,
+            REVIEWCUSTOMERS, REVIEWWAITING, REVIEWOUTPUTPDF, REVIEWOUTPUTHTML,
+            REVIEWOUTPUTMD, REVIEWHOME, REVIEWWORK, PUSHOVERHOME, PUSHOVERWORK)
+
 
 def ConfigSectionMap(Config, section):
     dict1 = {}
@@ -251,7 +257,7 @@ def printDebugOutput(con, prepend):
         sys.exit("An error occurred: {0}".format(e.args[0]))
 
 
-def parseInputDB(tpfile, con):
+def parseInput(tpfile, con):
     try:
         cur = con.cursor()
         with open(tpfile, 'rb') as f:
@@ -361,7 +367,7 @@ def setTags(con):
 
 
 # check @done and mark for later move to archive
-def archiveDoneDB(con):
+def archiveDone(con):
     try:
         cursel = con.cursor()
         curup = con.cursor()
@@ -378,7 +384,7 @@ def archiveDoneDB(con):
 
 
 # check @maybe and mark for later move to maybe file
-def archiveMaybeDB(con):
+def archiveMaybe(con):
     try:
         cursel = con.cursor()
         curup = con.cursor()
@@ -394,7 +400,7 @@ def archiveMaybeDB(con):
 
 
 # check repeat statements; instantiate new tasks if startdate + repeat interval = today
-def setRepeatDB(con):
+def setRepeat(con):
     try:
         cursel = con.cursor()
         curin = con.cursor()
@@ -403,8 +409,8 @@ def setRepeatDB(con):
             prio, duedate, taskid FROM tasks where repeat = 1")
         for row in cursel:
             delta = ''
-            intervalnumber = row[0][0]
-            typeofinterval = row[0][1]
+            intervalnumber = re.search(r'(\d+)[dwm]', row[0]).group(1)
+            typeofinterval = re.search(r'\d+([dwm])', row[0]).group(1)
             intnum = int(intervalnumber)
             if 'd' in typeofinterval:
                 delta = 'days'
@@ -497,7 +503,7 @@ def printDebug(con, tpfile):
         sys.exit("An error occurred: {0}".format(e.args[0]))
 
 
-def createOutFileDB(con):
+def createOutFile(con):
     try:
         mytxt = ''
         mytxt = 'work:\n'
@@ -538,7 +544,7 @@ def createOutFileDB(con):
     return (mytxt, mytxtdone, mytxtmaybe)
 
 
-def createTaskListHighOverdueDB(con, destination):
+def createTaskListHighOverdue(con, destination):
     try:
         mytxt = '## Open tasks with prio high:\n'
         cursel = con.cursor()
@@ -630,7 +636,7 @@ def sendMail(content, subject, sender, receiver, text_subtype, encrypted):
         sys.exit("sending email failed; {0}".format(exc))
 
 
-def createMailDB(con, destination, encrypted):
+def createMail(con, destination, encrypted):
     if SENDMAIL:
         try:
             cursel = con.cursor()
@@ -696,7 +702,7 @@ def createMailDB(con, destination, encrypted):
             sys.exit("creating email failed; {0}".format(exc))
 
 
-def createUniqueListDB(con, element, group):
+def createUniqueList(con, element, group):
     mylist = []
     try:
         cursel = con.cursor()
@@ -712,7 +718,7 @@ def createUniqueListDB(con, element, group):
     return mylist
 
 
-def createTaskListDB(con, element, headline, mylist, group):
+def createTaskList(con, element, headline, mylist, group):
     mytasks = '\n\n## {0}\n'.format(headline)
     for listelement in mylist:
         mytasks = '{0}\n\n### {1}\n'.format(mytasks, listelement)
@@ -743,37 +749,37 @@ def main():
     (inputfile, configfile, modus) = parseArgs(sys.argv[1:])
     parseConfig(configfile)
     mycon = initDB()
-    parseInputDB(inputfile, mycon)
+    parseInput(inputfile, mycon)
 
     if modus == "daily":
         removeTags(mycon)
         setTags(mycon)
-        archiveDoneDB(mycon)
-        archiveMaybeDB(mycon)
-        setRepeatDB(mycon)
-        filterWhitespacesDB(mycon)
+        archiveDone(mycon)
+        archiveMaybe(mycon)
+        setRepeat(mycon)
+        filterWhitespaces(mycon)
         if DEBUG:
             printDebug(mycon, inputfile)
         else:
-            (mytxt, mytxtdone, mytxtmaybe) = createOutFileDB(mycon)
+            (mytxt, mytxtdone, mytxtmaybe) = createOutFile(mycon)
             shutil.move(inputfile, '{0}backup/todo_{1}.txt'.format(inputfile[:-8], TODAY))
             myFile(mytxt, inputfile, 'w')
             myFile(mytxtdone, '{0}archive.txt'.format(inputfile[:-8]), 'a')
             myFile(mytxtmaybe, '{0}maybe.txt'.format(inputfile[:-8]), 'a')
         if SENDMAIL:
             if SENDMAILHOME:
-                createMailDB(mycon, 'home', False)
+                createMail(mycon, 'home', False)
             if SENDMAILWORK:
-                createMailDB(mycon, 'work', True)
+                createMail(mycon, 'work', True)
         if PUSHOVER:
             if PUSHOVERHOME:
-                pushovertxt = createTaskListHighOverdueDB(mycon, 'home')
+                pushovertxt = createTaskListHighOverdue(mycon, 'home')
                 # pushover limits messages sizes to 512 characters
                 if len(pushovertxt) > 512:
                         pushovertxt = pushovertxt[:512]
                 sendPushover(pushovertxt)
             if PUSHOVERWORK:
-                pushovertxt = createTaskListHighOverdueDB(mycon, 'work')
+                pushovertxt = createTaskListHighOverdue(mycon, 'work')
                 # pushover limits messages sizes to 512 characters
                 if len(pushovertxt) > 512:
                         pushovertxt = pushovertxt[:512]
@@ -787,24 +793,24 @@ def main():
         for group in reviewgroup:
             reviewfile = '{0}/Review_{1}_{2}'.format(REVIEWPATH, group, TODAY)
             reviewtext = '# Review\n\n'
-            reviewtext = '{0}\n{1}'.format(reviewtext, createTaskListHighOverdueDB(mycon, group))
+            reviewtext = '{0}\n{1}'.format(reviewtext, createTaskListHighOverdue(mycon, group))
             if REVIEWAGENDA:
-                agendalist = createUniqueListDB(mycon, 'agenda', group)
-                agendatasks = createTaskListDB(mycon, 'agenda', 'Agenda', agendalist, group)
+                agendalist = createUniqueList(mycon, 'agenda', group)
+                agendatasks = createTaskList(mycon, 'agenda', 'Agenda', agendalist, group)
                 reviewtext = '{0}\n{1}'.format(reviewtext, agendatasks)
             if REVIEWWAITING:
-                waitinglist = createUniqueListDB(mycon, 'waiting', group)
-                waitingtasks = createTaskListDB(mycon, 'waiting',
+                waitinglist = createUniqueList(mycon, 'waiting', group)
+                waitingtasks = createTaskList(mycon, 'waiting',
                     'Waiting For', waitinglist, group)
                 reviewtext = '{0}\n{1}'.format(reviewtext, waitingtasks)
             if REVIEWCUSTOMERS:
-                customerlist = createUniqueListDB(mycon, 'customer', group)
-                customertasks = createTaskListDB(mycon, 'customer',
+                customerlist = createUniqueList(mycon, 'customer', group)
+                customertasks = createTaskList(mycon, 'customer',
                     'Customers', customerlist, group)
                 reviewtext = '{0}\n{1}'.format(reviewtext, customertasks)
             if REVIEWPROJECTS:
-                projectlist = createUniqueListDB(mycon, 'project', group)
-                projecttasks = createTaskListDB(mycon, 'project', 'Projects', projectlist, group)
+                projectlist = createUniqueList(mycon, 'project', group)
+                projecttasks = createTaskList(mycon, 'project', 'Projects', projectlist, group)
                 reviewtext = '{0}\n{1}'.format(reviewtext, projecttasks)
 
             html = markdown2html(reviewtext)
