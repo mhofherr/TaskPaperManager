@@ -14,15 +14,22 @@ from __future__ import (absolute_import, division, print_function, unicode_liter
 from datetime import datetime, timedelta
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
+from email.mime.text import MIMEText
+
 import markdown2
 import xhtml2pdf.pisa as pisa
-import cStringIO
-import ConfigParser
 import getopt
 import shutil
 import sys
 import re
+import httplib
+import urllib
+import smtplib
+import gnupg
 import sqlite3
+
+from six.moves import configparser
+from six.moves import cStringIO
 
 
 """Data structure
@@ -80,6 +87,39 @@ def initDB():
             taskid INTEGER,
             commentline text,
             FOREIGN KEY(taskid) REFERENCES tasks(taskid)
+            )''')
+        cur.execute('''CREATE TABLE settings(
+            debug INTEGER,
+            sendmail INTEGER,
+            sendmailhome INTEGER,
+            sendmailwork INTEGER,
+            smtpserver TEXT,
+            smtpport INTEGER,
+            smtpuser TEXT,
+            smtppassword TEXT,
+            pushover INTEGER,
+            duedelta TEXT,
+            dueinterval INTEGER,
+            encryptmail INTEGER,
+            gnupghome TEXT,
+            pushovertoken TEXT,
+            pushoveruser TEXT,
+            targetfingerprint TEXT,
+            sourceemail TEXT,
+            desthomeemail TEXT,
+            destworkemail TEXT,
+            reviewpath TEXT,
+            reviewagenda INTEGER,
+            reviewprojects INTEGER,
+            reviewcustomers INTEGER,
+            reviewwaiting INTEGER,
+            reviewoutputpdf INTEGER,
+            reviewoutputhtml INTEGER,
+            reviewoutputmd INTEGER,
+            reviewhome INTEGER,
+            reviewwork INTEGER,
+            pushoverhome INTEGER,
+            pushoverwork INTEGER
             )''')
         conn.commit()
     except sqlite3.Error as e:
@@ -165,82 +205,54 @@ def removeTaskParts(instring, removelist):
     return outstring
 
 
-def parseConfig(configfile):
+def parseConfig(configfile, con):
     """sets the config parameters as global variables"""
 
-    Config = ConfigParser.ConfigParser()
+    curin = con.cursor()
+    Config = configparser.ConfigParser()
     Config.read(configfile)
-
-    global DEBUG
-    global SENDMAIL
-    global SENDMAILHOME
-    global SENDMAILWORK
-    global SMTPSERVER
-    global SMTPPORT
-    global SMTPUSER
-    global SMTPPASSWORD
-    global PUSHOVER
-    global DUEDELTA
-    global DUEINTERVAL
-    global ENCRYPTMAIL
-    global GNUPGHOME
-    global PUSHOVERTOKEN
-    global PUSHOVERUSER
-    global TARGETFINGERPRINT
-    global SOURCEEMAIL
-    global DESTHOMEEMAIL
-    global DESTWORKEMAIL
-    global REVIEWPATH
-    global REVIEWAGENDA
-    global REVIEWPROJECTS
-    global REVIEWCUSTOMERS
-    global REVIEWWAITING
-    global REVIEWOUTPUTPDF
-    global REVIEWOUTPUTHTML
-    global REVIEWOUTPUTMD
-    global REVIEWHOME
-    global REVIEWWORK
-    global PUSHOVERHOME
-    global PUSHOVERWORK
-
-    DEBUG = Config.getboolean('tpm', 'debug')
-    SENDMAIL = Config.getboolean('mail', 'sendmail')
-    SENDMAILWORK = Config.getboolean('mail', 'sendmailwork')
-    SENDMAILHOME = Config.getboolean('mail', 'sendmailhome')
-    SMTPSERVER = ConfigSectionMap(Config, 'mail')['smtpserver']
-    SMTPPORT = Config.getint('mail', 'smtpport')
-    SMTPUSER = ConfigSectionMap(Config, 'mail')['smtpuser']
-    SMTPPASSWORD = ConfigSectionMap(Config, 'mail')['smtppassword']
-    PUSHOVER = Config.getboolean('pushover', 'pushover')
-    PUSHOVERHOME = Config.getboolean('pushover', 'pushoverhome')
-    PUSHOVERWORK = Config.getboolean('pushover', 'pushoverwork')
-    DUEDELTA = ConfigSectionMap(Config, 'tpm')['duedelta']
-    DUEINTERVAL = Config.getint('tpm', 'dueinterval')
-    ENCRYPTMAIL = Config.getboolean('mail', 'encryptmail')
-    GNUPGHOME = ConfigSectionMap(Config, 'mail')['gnupghome']
-    PUSHOVERTOKEN = ConfigSectionMap(Config, 'pushover')['pushovertoken']
-    PUSHOVERUSER = ConfigSectionMap(Config, 'pushover')['pushoveruser']
-    TARGETFINGERPRINT = ConfigSectionMap(Config, 'mail')['targetfingerprint']
-    SOURCEEMAIL = ConfigSectionMap(Config, 'mail')['sourceemail']
-    DESTHOMEEMAIL = ConfigSectionMap(Config, 'mail')['desthomeemail']
-    DESTWORKEMAIL = ConfigSectionMap(Config, 'mail')['destworkemail']
-    REVIEWPATH = ConfigSectionMap(Config, 'review')['reviewpath']
-    REVIEWAGENDA = Config.getboolean('review', 'reviewagenda')
-    REVIEWPROJECTS = Config.getboolean('review', 'reviewprojects')
-    REVIEWCUSTOMERS = Config.getboolean('review', 'reviewcustomers')
-    REVIEWWAITING = Config.getboolean('review', 'reviewwaiting')
-    REVIEWOUTPUTPDF = Config.getboolean('review', 'outputpdf')
-    REVIEWOUTPUTHTML = Config.getboolean('review', 'outputhtml')
-    REVIEWOUTPUTMD = Config.getboolean('review', 'outputmd')
-    REVIEWHOME = Config.getboolean('review', 'reviewhome')
-    REVIEWWORK = Config.getboolean('review', 'reviewwork')
-
-    return (DEBUG, SENDMAIL, SENDMAILHOME, SENDMAILWORK, SMTPSERVER, SMTPPORT,
-            SMTPUSER, SMTPPASSWORD, PUSHOVER, DUEDELTA, DUEINTERVAL, ENCRYPTMAIL,
-            GNUPGHOME, PUSHOVERTOKEN, PUSHOVERUSER, TARGETFINGERPRINT, SOURCEEMAIL,
-            DESTHOMEEMAIL, DESTWORKEMAIL, REVIEWPATH, REVIEWAGENDA, REVIEWPROJECTS,
-            REVIEWCUSTOMERS, REVIEWWAITING, REVIEWOUTPUTPDF, REVIEWOUTPUTHTML,
-            REVIEWOUTPUTMD, REVIEWHOME, REVIEWWORK, PUSHOVERHOME, PUSHOVERWORK)
+    try:
+        curin.execute("insert into tasks (debug, sendmail, sendmailhome, sendmailwork, smtpserver,\
+            smtpport, smtpuser, smtppassword, pushover, duedelta, dueinterval, encryptmail, gnupghome,\
+            pushovertoken, pushoveruser, targetfingerprint, sourceemail, desthomeemail, destworkemail,\
+            reviewpath, reviewagenda, reviewprojects, reviewcustomers, reviewwaiting, reviewoutputpdf,\
+            reviewoutputhtml, reviewoutputmd, reviewhome, reviewwork, pushoverhome, pushoverwork) values\
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                Config.getboolean('tpm', 'debug'),
+                Config.getboolean('mail', 'sendmail'),
+                Config.getboolean('mail', 'sendmailwork'),
+                Config.getboolean('mail', 'sendmailhome'),
+                ConfigSectionMap(Config, 'mail')['smtpserver'],
+                Config.getint('mail', 'smtpport'),
+                ConfigSectionMap(Config, 'mail')['smtpuser'],
+                ConfigSectionMap(Config, 'mail')['smtppassword'],
+                Config.getboolean('pushover', 'pushover'),
+                ConfigSectionMap(Config, 'tpm')['duedelta'],
+                Config.getint('tpm', 'dueinterval'),
+                Config.getboolean('mail', 'encryptmail'),
+                ConfigSectionMap(Config, 'mail')['gnupghome'],
+                ConfigSectionMap(Config, 'pushover')['pushovertoken'],
+                ConfigSectionMap(Config, 'pushover')['pushoveruser'],
+                ConfigSectionMap(Config, 'mail')['targetfingerprint'],
+                ConfigSectionMap(Config, 'mail')['sourceemail'],
+                ConfigSectionMap(Config, 'mail')['desthomeemail'],
+                ConfigSectionMap(Config, 'mail')['destworkemail'],
+                ConfigSectionMap(Config, 'review')['reviewpath'],
+                Config.getboolean('review', 'reviewagenda'),
+                Config.getboolean('review', 'reviewprojects'),
+                Config.getboolean('review', 'reviewcustomers'),
+                Config.getboolean('review', 'reviewwaiting'),
+                Config.getboolean('review', 'outputpdf'),
+                Config.getboolean('review', 'outputhtml'),
+                Config.getboolean('review', 'outputmd'),
+                Config.getboolean('review', 'reviewhome'),
+                Config.getboolean('review', 'reviewwork'),
+                Config.getboolean('pushover', 'pushoverhome'),
+                Config.getboolean('pushover', 'pushoverwork'),
+            ))
+    except sqlite3.Error as e:
+        sys.exit("An error occurred: {0}".format(e.args[0]))
 
 
 def ConfigSectionMap(Config, section):
@@ -608,8 +620,6 @@ def html2pdf(html, outfile):
 
 
 def sendPushover(content):
-    import httplib
-    import urllib
     content = content.encode("utf-8")
     try:
         conn = httplib.HTTPSConnection("api.pushover.net:443")
@@ -625,15 +635,12 @@ def sendPushover(content):
 
 
 def sendMail(content, subject, sender, receiver, text_subtype, encrypted):
-    import smtplib
-    from email.mime.text import MIMEText
     content = content.encode("utf-8")
     try:
         if encrypted is False:
             msg = MIMEText(content, text_subtype)
         elif encrypted is True:
             if ENCRYPTMAIL:
-                import gnupg
                 gpg = gnupg.GPG(gnupghome=GNUPGHOME)
                 gpg.encoding = 'utf-8'
                 contentenc = gpg.encrypt(content, TARGETFINGERPRINT, always_trust=True)
@@ -770,8 +777,8 @@ def myFile(mytext, filename, mode):
 
 def main():
     (inputfile, configfile, modus) = parseArgs(sys.argv[1:])
-    parseConfig(configfile)
     mycon = initDB()
+    parseConfig(configfile, mycon)
     parseInput(inputfile, mycon)
 
     if modus == "daily":
