@@ -51,16 +51,6 @@ overdue: boolean; true if today is after duedate"""
 TODAY = datetime.date(datetime.now())
 DAYBEFORE = TODAY - timedelta(days=1)
 
-# global vars
-DEBUG = SENDMAIL = SMTPSERVER = SMTPPORT = SMTPUSER = SMTPPASSWORD\
-    = PUSHOVER = DUEDELTA = DUEINTERVAL = ENCRYPTMAIL = GNUPGHOME\
-    = PUSHOVERTOKEN = PUSHOVERUSER = TARGETFINGERPRINT = SOURCEEMAIL\
-    = DESTHOMEEMAIL = DESTWORKEMAIL = REVIEWPATH\
-    = REVIEWAGENDA = REVIEWPROJECTS = REVIEWCUSTOMERS\
-    = REVIEWWAITING = REVIEWOUTPUTPDF = REVIEWOUTPUTHTML\
-    = REVIEWOUTPUTMD = REVIEWHOME = REVIEWWORK\
-    = SENDMAILHOME = SENDMAILWORK = PUSHOVERHOME = PUSHOVERWORK = ''
-
 
 # create in-memory db instance
 def initDB():
@@ -87,39 +77,6 @@ def initDB():
             taskid INTEGER,
             commentline text,
             FOREIGN KEY(taskid) REFERENCES tasks(taskid)
-            )''')
-        cur.execute('''CREATE TABLE settings(
-            debug INTEGER,
-            sendmail INTEGER,
-            sendmailhome INTEGER,
-            sendmailwork INTEGER,
-            smtpserver TEXT,
-            smtpport INTEGER,
-            smtpuser TEXT,
-            smtppassword TEXT,
-            pushover INTEGER,
-            duedelta TEXT,
-            dueinterval INTEGER,
-            encryptmail INTEGER,
-            gnupghome TEXT,
-            pushovertoken TEXT,
-            pushoveruser TEXT,
-            targetfingerprint TEXT,
-            sourceemail TEXT,
-            desthomeemail TEXT,
-            destworkemail TEXT,
-            reviewpath TEXT,
-            reviewagenda INTEGER,
-            reviewprojects INTEGER,
-            reviewcustomers INTEGER,
-            reviewwaiting INTEGER,
-            reviewoutputpdf INTEGER,
-            reviewoutputhtml INTEGER,
-            reviewoutputmd INTEGER,
-            reviewhome INTEGER,
-            reviewwork INTEGER,
-            pushoverhome INTEGER,
-            pushoverwork INTEGER
             )''')
         conn.commit()
     except sqlite3.Error as e:
@@ -205,54 +162,43 @@ def removeTaskParts(instring, removelist):
     return outstring
 
 
-def parseConfig(configfile, con):
-    """sets the config parameters as global variables"""
+class settings:
+    """ contains the settings for TPN, parsed from the config file """
 
-    curin = con.cursor()
-    Config = configparser.ConfigParser()
-    Config.read(configfile)
-    try:
-        curin.execute("insert into tasks (debug, sendmail, sendmailhome, sendmailwork, smtpserver,\
-            smtpport, smtpuser, smtppassword, pushover, duedelta, dueinterval, encryptmail, gnupghome,\
-            pushovertoken, pushoveruser, targetfingerprint, sourceemail, desthomeemail, destworkemail,\
-            reviewpath, reviewagenda, reviewprojects, reviewcustomers, reviewwaiting, reviewoutputpdf,\
-            reviewoutputhtml, reviewoutputmd, reviewhome, reviewwork, pushoverhome, pushoverwork) values\
-            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (
-                Config.getboolean('tpm', 'debug'),
-                Config.getboolean('mail', 'sendmail'),
-                Config.getboolean('mail', 'sendmailwork'),
-                Config.getboolean('mail', 'sendmailhome'),
-                ConfigSectionMap(Config, 'mail')['smtpserver'],
-                Config.getint('mail', 'smtpport'),
-                ConfigSectionMap(Config, 'mail')['smtpuser'],
-                ConfigSectionMap(Config, 'mail')['smtppassword'],
-                Config.getboolean('pushover', 'pushover'),
-                ConfigSectionMap(Config, 'tpm')['duedelta'],
-                Config.getint('tpm', 'dueinterval'),
-                Config.getboolean('mail', 'encryptmail'),
-                ConfigSectionMap(Config, 'mail')['gnupghome'],
-                ConfigSectionMap(Config, 'pushover')['pushovertoken'],
-                ConfigSectionMap(Config, 'pushover')['pushoveruser'],
-                ConfigSectionMap(Config, 'mail')['targetfingerprint'],
-                ConfigSectionMap(Config, 'mail')['sourceemail'],
-                ConfigSectionMap(Config, 'mail')['desthomeemail'],
-                ConfigSectionMap(Config, 'mail')['destworkemail'],
-                ConfigSectionMap(Config, 'review')['reviewpath'],
-                Config.getboolean('review', 'reviewagenda'),
-                Config.getboolean('review', 'reviewprojects'),
-                Config.getboolean('review', 'reviewcustomers'),
-                Config.getboolean('review', 'reviewwaiting'),
-                Config.getboolean('review', 'outputpdf'),
-                Config.getboolean('review', 'outputhtml'),
-                Config.getboolean('review', 'outputmd'),
-                Config.getboolean('review', 'reviewhome'),
-                Config.getboolean('review', 'reviewwork'),
-                Config.getboolean('pushover', 'pushoverhome'),
-                Config.getboolean('pushover', 'pushoverwork'),
-            ))
-    except sqlite3.Error as e:
-        sys.exit("An error occurred: {0}".format(e.args[0]))
+    def __init__(self, configfile):
+        Config = configparser.ConfigParser()
+        Config.read(configfile)
+        self.debug = Config.getboolean('tpm', 'debug')
+        self.sendmail = Config.getboolean('mail', 'sendmail')
+        self.sendmailhome = Config.getboolean('mail', 'sendmailwork')
+        self.sendmailwork = Config.getboolean('mail', 'sendmailhome')
+        self.smtpserver = ConfigSectionMap(Config, 'mail')['smtpserver']
+        self.smtpport = Config.getint('mail', 'smtpport')
+        self.smtpuser = ConfigSectionMap(Config, 'mail')['smtpuser']
+        self.smtppassword = ConfigSectionMap(Config, 'mail')['smtppassword']
+        self.pushover = Config.getboolean('pushover', 'pushover')
+        self.duedelta = ConfigSectionMap(Config, 'tpm')['duedelta']
+        self.dueinterval = Config.getint('tpm', 'dueinterval')
+        self.encryptmail = Config.getboolean('mail', 'encryptmail')
+        self.gnupghome = ConfigSectionMap(Config, 'mail')['gnupghome']
+        self.pushovertoken = ConfigSectionMap(Config, 'pushover')['pushovertoken']
+        self.pushoveruser = ConfigSectionMap(Config, 'pushover')['pushoveruser']
+        self.targetfingerprint = ConfigSectionMap(Config, 'mail')['targetfingerprint']
+        self.sourceemail = ConfigSectionMap(Config, 'mail')['sourceemail']
+        self.desthomeemail = ConfigSectionMap(Config, 'mail')['desthomeemail']
+        self.destworkemail = ConfigSectionMap(Config, 'mail')['destworkemail']
+        self.reviewpath = ConfigSectionMap(Config, 'review')['reviewpath']
+        self.reviewagenda = Config.getboolean('review', 'reviewagenda')
+        self.reviewprojects = Config.getboolean('review', 'reviewprojects')
+        self.reviewcustomers = Config.getboolean('review', 'reviewcustomers')
+        self.reviewwaiting = Config.getboolean('review', 'reviewwaiting')
+        self.reviewoutputpdf = Config.getboolean('review', 'outputpdf')
+        self.reviewoutputhtml = Config.getboolean('review', 'outputhtml')
+        self.reviewoutputmd = Config.getboolean('review', 'outputmd')
+        self.reviewhome = Config.getboolean('review', 'reviewhome')
+        self.reviewwork = Config.getboolean('review', 'reviewwork')
+        self.pushoverhome = Config.getboolean('pushover', 'pushoverhome')
+        self.pushoverwork = Config.getboolean('pushover', 'pushoverwork')
 
 
 def ConfigSectionMap(Config, section):
@@ -280,10 +226,11 @@ def printDebugOutput(con, prepend):
                 row[4], row[5], row[6], row[7], row[8], row[9], row[10], row[11]))
         con.commit()
     except sqlite3.Error as e:
-        sys.exit("An error occurred: {0}".format(e.args[0]))
+        sys.exit("printDebugOutput - An error occurred: {0}".format(e.args[0]))
 
 
-def parseInput(tpfile, con):
+def parseInput(tpfile, con, configfile):
+    sett = settings(configfile)
     try:
         cur = con.cursor()
         with open(tpfile, 'rb') as f:
@@ -319,7 +266,7 @@ def parseInput(tpfile, con):
                 if '@due' in line:
                     duedate = re.search(r'\@due\((.*?)\)', line).group(1)
                     duealert = datetime.date(parser.parse(duedate)) \
-                        - timedelta(**{DUEDELTA: DUEINTERVAL})
+                        - timedelta(**{sett.duedelta: sett.dueinterval})
                     if duealert <= TODAY \
                             <= datetime.date(parser.parse(duedate)):
                         duesoon = True
@@ -341,7 +288,7 @@ def parseInput(tpfile, con):
                             ( priotag, starttag, project, line.strip(), done, repeat,
                             repeatinterval, duedate, duesoon, overdue, maybe))
                     except sqlite3.Error as e:
-                        sys.exit("An error occurred: {0}".format(e.args[0]))
+                        sys.exit("parseInput - An error occurred: {0}".format(e.args[0]))
                 else:
                     try:
                         cur.execute("insert into tasks (prio, startdate, project, taskline, done,\
@@ -350,7 +297,7 @@ def parseInput(tpfile, con):
                             (None, None, project, line.strip(), done, repeat,
                             repeatinterval, duedate, duesoon, overdue, maybe))
                     except sqlite3.Error as e:
-                        sys.exit("An error occurred: {0}".format(e.args[0]))
+                        sys.exit("parseInput - An error occurred: {0}".format(e.args[0]))
                 con.commit()
             except Exception as e:
                 errlist.append((line, e))
@@ -371,7 +318,7 @@ def removeTags(con):
                              (taskstring, row[0]))
         con.commit()
     except sqlite3.Error as e:
-        sys.exit("An error occurred: {0}".format(e.args[0]))
+        sys.exit("removeTags - An error occurred: {0}".format(e.args[0]))
 
 
 # set overdue and duesoon tags
@@ -389,7 +336,7 @@ def setTags(con):
                          ('{0} @duesoon'.format(row[1]), row[0]))
         con.commit()
     except sqlite3.Error as e:
-        sys.exit("An error occurred: {0}".format(e.args[0]))
+        sys.exit("setTags - An error occurred: {0}".format(e.args[0]))
 
 
 # check @done and mark for later move to archive
@@ -406,7 +353,7 @@ def archiveDone(con):
                          (newtask, 'Archive', row[0]))
         con.commit()
     except sqlite3.Error as e:
-        sys.exit("An error occurred: {0}".format(e.args[0]))
+        sys.exit("archiveDone - An error occurred: {0}".format(e.args[0]))
 
 
 # check @maybe and mark for later move to maybe file
@@ -422,7 +369,7 @@ def archiveMaybe(con):
                          (newtask, 'Maybe', row[0]))
         con.commit()
     except sqlite3.Error as e:
-        sys.exit("An error occurred: {0}".format(e.args[0]))
+        sys.exit("archiveMaybe - An error occurred: {0}".format(e.args[0]))
 
 
 # check repeat statements; instantiate new tasks if startdate + repeat interval = today
@@ -473,7 +420,7 @@ def setRepeat(con):
                         (row[3], str(newstartdate), projecttag, taskstring, 0, 0,
                         '-', row[4], 0, 0, 0))
                 except sqlite3.Error as e:
-                    sys.exit("An error occurred: {0}".format(e.args[0]))
+                    sys.exit("setRepeat - An error occurred: {0}".format(e.args[0]))
 
                 # remove old start-date in taskstring; add newstartdate as start date instead
                 taskstring = removeTaskParts(row[2], '@start')
@@ -484,10 +431,10 @@ def setRepeat(con):
                     curup.execute("UPDATE tasks SET taskline=? WHERE taskid=?",
                                  (taskstring, row[5]))
                 except sqlite3.Error as e:
-                    sys.exit("An error occurred: {0}".format(e.args[0]))
+                    sys.exit("setRepeat - An error occurred: {0}".format(e.args[0]))
         con.commit()
     except sqlite3.Error as e:
-        sys.exit("An error occurred: {0}".format(e.args[0]))
+        sys.exit("setRepeat - An error occurred: {0}".format(e.args[0]))
 
 
 def printDebug(con, tpfile):
@@ -531,7 +478,7 @@ def printDebug(con, tpfile):
             print('\t{0}'.format(row[0]).encode("utf-8"))
         con.commit()
     except sqlite3.Error as e:
-        sys.exit("An error occurred: {0}".format(e.args[0]))
+        sys.exit("printDebug - An error occurred: {0}".format(e.args[0]))
 
 
 def createOutFile(con):
@@ -575,7 +522,7 @@ def createOutFile(con):
             mytxtmaybe = '{0}\t{1}\n'.format(mytxtmaybe, row[0])
         con.commit()
     except sqlite3.Error as e:
-        sys.exit("An error occurred: {0}".format(e.args[0]))
+        sys.exit("createOutFile - An error occurred: {0}".format(e.args[0]))
     return (mytxt, mytxtdone, mytxtmaybe)
 
 
@@ -599,7 +546,7 @@ def createTaskListHighOverdue(con, destination):
             mytxt = '{0}{1}\n'.format(mytxt, taskstring.strip())
         con.commit()
     except sqlite3.Error as e:
-        sys.exit("An error occurred: {0}".format(e.args[0]))
+        sys.exit("createTaskListHighOverdue - An error occurred: {0}".format(e.args[0]))
     return mytxt
 
 
@@ -619,14 +566,15 @@ def html2pdf(html, outfile):
         sys.exit()
 
 
-def sendPushover(content):
+def sendPushover(content, configfile):
+    sett = settings(configfile)
     content = content.encode("utf-8")
     try:
         conn = httplib.HTTPSConnection("api.pushover.net:443")
         conn.request("POST", "/1/messages.json",
             urllib.urlencode({
-                "token": PUSHOVERTOKEN,
-                "user": PUSHOVERUSER,
+                "token": sett.pushovertoken,
+                "user": sett.pushoveruser,
                 "message": content,
             }), {"Content-type": "application/x-www-form-urlencoded"})
         conn.getresponse()
@@ -634,29 +582,30 @@ def sendPushover(content):
         sys.exit("sending pushover message failed; {0}".format(exc))
 
 
-def sendMail(content, subject, sender, receiver, text_subtype, encrypted):
+def sendMail(content, subject, sender, receiver, text_subtype, encrypted, configfile):
+    sett = settings(configfile)
     content = content.encode("utf-8")
     try:
         if encrypted is False:
             msg = MIMEText(content, text_subtype)
         elif encrypted is True:
-            if ENCRYPTMAIL:
-                gpg = gnupg.GPG(gnupghome=GNUPGHOME)
+            if sett.encryptmail:
+                gpg = gnupg.GPG(gnupghome=sett.gnupghome)
                 gpg.encoding = 'utf-8'
-                contentenc = gpg.encrypt(content, TARGETFINGERPRINT, always_trust=True)
+                contentenc = gpg.encrypt(content, sett.targetfingerprint, always_trust=True)
                 msg = MIMEText(str(contentenc), text_subtype)
             else:
                 raise "encryption required, but not set in config file"
         msg['Subject'] = subject
         msg['From'] = sender
 
-        conn = smtplib.SMTP(SMTPSERVER, SMTPPORT)
+        conn = smtplib.SMTP(sett.smtpserver, sett.smtpport)
         conn.starttls()
-        if DEBUG:
+        if sett.debug:
             conn.set_debuglevel(True)
         else:
             conn.set_debuglevel(False)
-        conn.login(SMTPUSER, SMTPPASSWORD)
+        conn.login(sett.smtpuser, sett.smtppassword)
         try:
             conn.sendmail(sender, receiver, msg.as_string())
         finally:
@@ -666,14 +615,15 @@ def sendMail(content, subject, sender, receiver, text_subtype, encrypted):
         sys.exit("sending email failed; {0}".format(exc))
 
 
-def createMail(con, destination, encrypted):
-    if SENDMAIL:
+def createMail(con, destination, encrypted, configfile):
+    sett = settings(configfile)
+    if sett.sendmail:
         try:
             cursel = con.cursor()
 
-            source = SOURCEEMAIL
-            desthome = DESTHOMEEMAIL
-            destwork = DESTWORKEMAIL
+            source = sett.sourceemail
+            desthome = sett.desthomeemail
+            destwork = sett.destworkemail
 
             mytxt = '<html><head><title>Tasks for Today</title></head><body>'
             mytxt = '{0}<h1>Tasks for Today</h1><p>'.format(mytxt)
@@ -722,9 +672,9 @@ def createMail(con, destination, encrypted):
             mytxt = '{0}</table></body></html>'.format(mytxt)
 
             if destination == 'home':
-                sendMail(mytxt, 'Taskpaper daily overview', source, desthome, 'html', False)
+                sendMail(mytxt, 'Taskpaper daily overview', source, desthome, 'html', False, configfile)
             elif destination == 'work':
-                sendMail(mytxtasc, 'Taskpaper daily overview', source, destwork, 'text', True)
+                sendMail(mytxtasc, 'Taskpaper daily overview', source, destwork, 'text', True, configfile)
             else:
                 raise "wrong destination"
 
@@ -744,7 +694,7 @@ def createUniqueList(con, element, group):
                 if mycontent not in mylist:
                     mylist.append(mycontent)
     except sqlite3.Error as e:
-        sys.exit("An error occurred: {0}".format(e.args[0]))
+        sys.exit("createUniqueList - An error occurred: {0}".format(e.args[0]))
     return mylist
 
 
@@ -761,7 +711,7 @@ def createTaskList(con, element, headline, mylist, group):
                     if re.search(r'\@' + element + '\((.*?)\)', row[0]).group(1) == listelement:
                         mytasks = '{0}\n{1}'.format(mytasks, row[0])
         except sqlite3.Error as e:
-            sys.exit("An error occurred: {0}".format(e.args[0]))
+            sys.exit("createTaskList - An error occurred: {0}".format(e.args[0]))
     return mytasks
 
 
@@ -778,8 +728,8 @@ def myFile(mytext, filename, mode):
 def main():
     (inputfile, configfile, modus) = parseArgs(sys.argv[1:])
     mycon = initDB()
-    parseConfig(configfile, mycon)
-    parseInput(inputfile, mycon)
+    sett = settings(configfile)
+    parseInput(inputfile, mycon, configfile)
 
     if modus == "daily":
         removeTags(mycon)
@@ -788,7 +738,7 @@ def main():
         archiveMaybe(mycon)
         setRepeat(mycon)
         sanitizer(mycon)
-        if DEBUG:
+        if sett.debug:
             printDebug(mycon, inputfile)
         else:
             (mytxt, mytxtdone, mytxtmaybe) = createOutFile(mycon)
@@ -796,60 +746,60 @@ def main():
             myFile(mytxt, inputfile, 'w')
             myFile(mytxtdone, '{0}archive.txt'.format(inputfile[:-8]), 'a')
             myFile(mytxtmaybe, '{0}maybe.txt'.format(inputfile[:-8]), 'a')
-        if SENDMAIL:
-            if SENDMAILHOME:
-                createMail(mycon, 'home', False)
-            if SENDMAILWORK:
-                createMail(mycon, 'work', True)
-        if PUSHOVER:
-            if PUSHOVERHOME:
+        if sett.sendmail:
+            if sett.sendmailhome:
+                createMail(mycon, 'home', False, configfile)
+            if sett.sendmailwork:
+                createMail(mycon, 'work', True, configfile)
+        if sett.pushover:
+            if sett.pushoverhome:
                 pushovertxt = createTaskListHighOverdue(mycon, 'home')
                 # pushover limits messages sizes to 512 characters
                 if len(pushovertxt) > 512:
                         pushovertxt = pushovertxt[:512]
-                sendPushover(pushovertxt)
-            if PUSHOVERWORK:
+                sendPushover(pushovertxt, configfile)
+            if sett.pushoverwork:
                 pushovertxt = createTaskListHighOverdue(mycon, 'work')
                 # pushover limits messages sizes to 512 characters
                 if len(pushovertxt) > 512:
                         pushovertxt = pushovertxt[:512]
-                sendPushover(pushovertxt)
+                sendPushover(pushovertxt, configfile)
     elif modus == "review":
         reviewgroup = []
-        if REVIEWHOME:
+        if sett.reviewhome:
             reviewgroup.append('home')
-        if REVIEWWORK:
+        if sett.reviewwork:
             reviewgroup.append('work')
         for group in reviewgroup:
-            reviewfile = '{0}/Review_{1}_{2}'.format(REVIEWPATH, group, TODAY)
+            reviewfile = '{0}/Review_{1}_{2}'.format(sett.reviewpath, group, TODAY)
             reviewtext = '# Review\n\n'
             reviewtext = '{0}\n{1}'.format(reviewtext, createTaskListHighOverdue(mycon, group))
-            if REVIEWAGENDA:
+            if sett.reviewagenda:
                 agendalist = createUniqueList(mycon, 'agenda', group)
                 agendatasks = createTaskList(mycon, 'agenda', 'Agenda', agendalist, group)
                 reviewtext = '{0}\n{1}'.format(reviewtext, agendatasks)
-            if REVIEWWAITING:
+            if sett.reviewwaiting:
                 waitinglist = createUniqueList(mycon, 'waiting', group)
                 waitingtasks = createTaskList(mycon, 'waiting',
                     'Waiting For', waitinglist, group)
                 reviewtext = '{0}\n{1}'.format(reviewtext, waitingtasks)
-            if REVIEWCUSTOMERS:
+            if sett.reviewcustomers:
                 customerlist = createUniqueList(mycon, 'customer', group)
                 customertasks = createTaskList(mycon, 'customer',
                     'Customers', customerlist, group)
                 reviewtext = '{0}\n{1}'.format(reviewtext, customertasks)
-            if REVIEWPROJECTS:
+            if sett.reviewprojects:
                 projectlist = createUniqueList(mycon, 'project', group)
                 projecttasks = createTaskList(mycon, 'project', 'Projects', projectlist, group)
                 reviewtext = '{0}\n{1}'.format(reviewtext, projecttasks)
 
             html = markdown2html(reviewtext)
 
-            if REVIEWOUTPUTMD:
+            if sett.reviewoutputmd:
                 myFile(reviewtext, '{0}.md'.format(reviewfile), 'w')
-            if REVIEWOUTPUTHTML:
+            if sett.reviewoutputhtml:
                 myFile(html, '{0}.html'.format(reviewfile), 'w')
-            if REVIEWOUTPUTPDF:
+            if sett.reviewoutputpdf:
                 html2pdf(html, '{0}.pdf'.format(reviewfile))
     else:
         print("modus error")
