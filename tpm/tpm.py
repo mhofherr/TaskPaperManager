@@ -123,12 +123,26 @@ def parseArgs(argv):
 
 
 # filter unnecessary spaces
-def filterWhitespaces(con):
+def sanitizer(con):
     try:
         cursel = con.cursor()
         curup = con.cursor()
-        cursel.execute("SELECT taskid, taskline FROM tasks")
+        # check tasks in project work and home
+        cursel.execute("SELECT taskid, taskline FROM tasks where project = 'work'\
+            or project = 'home'")
         for row in cursel:
+            if '@prio' not in row[1] or '@start' not in row[1]:
+                curup.execute("UPDATE tasks SET project='Error' WHERE taskid=?", (row[0],))
+            taskstring = ' '.join(row[1].split())
+            curup.execute("UPDATE tasks SET taskline=? WHERE taskid=?",
+                         (taskstring, row[0]))
+        # check tasks in project repeat
+        cursel.execute("SELECT taskid, taskline FROM tasks where project = 'Repeat'")
+        for row in cursel:
+            if '@prio' not in row[1] or '@start' not in row[1] or '@repeat' not in row[1] or not\
+                    (('@work' not in row[1] and '@home' in row[1]) or (('@work' in row[1] and
+                    '@home' not in row[1]))):
+                curup.execute("UPDATE tasks SET project='Error' WHERE taskid=?", (row[0],))
             taskstring = ' '.join(row[1].split())
             curup.execute("UPDATE tasks SET taskline=? WHERE taskid=?",
                          (taskstring, row[0]))
@@ -471,33 +485,38 @@ def printDebug(con, tpfile):
         cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
             where project = 'work' ORDER BY prio asc, startdate desc ")
         for row in cursel:
-            print('\t{0}'.format(row[0]))
+            print('\t{0}'.format(row[0]).encode("utf-8"))
         print('\nhome:')
         cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
             where project = 'home' ORDER BY prio asc, startdate desc ")
         for row in cursel:
-            print('\t{0}'.format(row[0]))
+            print('\t{0}'.format(row[0]).encode("utf-8"))
         print('\nRepeat:')
         cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
             where project = 'Repeat' ORDER BY prio asc, startdate desc ")
         for row in cursel:
-            print('\t{0}'.format(row[0]))
+            print('\t{0}'.format(row[0]).encode("utf-8"))
         print('\nArchive:')
         print('\nINBOX:')
         cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
             where project = 'INBOX' ORDER BY prio asc, startdate desc ")
         for row in cursel:
-            print('\t{0}'.format(row[0]))
+            print('\t{0}'.format(row[0]).encode("utf-8"))
         print('\nArchive:')
         cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
             where project = 'Archive' ORDER BY prio asc, startdate desc ")
         for row in cursel:
-            print('\t{0}'.format(row[0]))
+            print('\t{0}'.format(row[0]).encode("utf-8"))
+        print('\nError:')
+        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
+            where project = 'Error' ORDER BY prio asc, startdate desc ")
+        for row in cursel:
+            print('\t{0}'.format(row[0]).encode("utf-8"))
         print('\nMaybe:')
         cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
             where project = 'Maybe' ORDER BY prio asc, startdate desc ")
         for row in cursel:
-            print('\t{0}'.format(row[0]))
+            print('\t{0}'.format(row[0]).encode("utf-8"))
         con.commit()
     except sqlite3.Error as e:
         sys.exit("An error occurred: {0}".format(e.args[0]))
@@ -522,7 +541,11 @@ def createOutFile(con):
             where project = 'Repeat' ORDER BY prio asc, startdate desc ")
         for row in cursel:
             mytxt = '{0}\t{1}\n'.format(mytxt, row[0])
-        mytxt = '{0}\nArchive:\n'.format(mytxt)
+        mytxt = '{0}\nError:\n'.format(mytxt)
+        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
+            where project = 'Error' ORDER BY prio asc, startdate desc ")
+        for row in cursel:
+            mytxt = '{0}\t{1}\n'.format(mytxt, row[0])
         mytxt = '{0}\nINBOX:\n'.format(mytxt)
         cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
             where project = 'INBOX' ORDER BY prio asc, startdate desc ")
@@ -757,7 +780,7 @@ def main():
         archiveDone(mycon)
         archiveMaybe(mycon)
         setRepeat(mycon)
-        filterWhitespaces(mycon)
+        sanitizer(mycon)
         if DEBUG:
             printDebug(mycon, inputfile)
         else:

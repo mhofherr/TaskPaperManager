@@ -49,7 +49,7 @@ TaskPaperParser support two modes of execution:
 
 ## Python versions
 
-TPM is developed on Python 2.7. Support for Python 3.4 is planned for the 1.1.0 release.
+TPM is developed on Python 2.7. Support for Python 3.4 is n the queue.
 
 ## Future features
 
@@ -58,7 +58,6 @@ TPM is developed on Python 2.7. Support for Python 3.4 is planned for the 1.1.0 
 * sanitize the tags: bring the tags in a fixed order; detection malformed/missing tags
 * support pgp/mime for sending encrypted emails (to support encrypted html emails)
 * provide a pypi package
-* Technical: change to sqlite in-memory database for data management
 
 ## Current limitations
 
