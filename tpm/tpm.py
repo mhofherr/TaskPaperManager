@@ -11,11 +11,10 @@ License: GPL v3 (for details see LICENSE file)
 
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
-from datetime import datetime, timedelta
-from dateutil import parser
-from dateutil.relativedelta import relativedelta
-from email.mime.text import MIMEText
-
+import dateutil.relativedelta
+import email.mime.text
+import dateutil.parser
+import datetime
 import markdown2
 import xhtml2pdf.pisa as pisa
 import getopt
@@ -48,8 +47,8 @@ duesoon: boolean; true if today is duedate minus DUEDELTA in DUEINTERVAL (consta
 overdue: boolean; true if today is after duedate"""
 
 
-TODAY = datetime.date(datetime.now())
-DAYBEFORE = TODAY - timedelta(days=1)
+TODAY = datetime.datetime.date(datetime.datetime.now())
+DAYBEFORE = TODAY - datetime.timedelta(days=1)
 
 
 # create in-memory db instance
@@ -170,8 +169,8 @@ class settings:
         Config.read(configfile)
         self.debug = Config.getboolean('tpm', 'debug')
         self.sendmail = Config.getboolean('mail', 'sendmail')
-        self.sendmailhome = Config.getboolean('mail', 'sendmailwork')
-        self.sendmailwork = Config.getboolean('mail', 'sendmailhome')
+        self.sendmailhome = Config.getboolean('mail', 'sendmailhome')
+        self.sendmailwork = Config.getboolean('mail', 'sendmailwork')
         self.smtpserver = ConfigSectionMap(Config, 'mail')['smtpserver']
         self.smtpport = Config.getint('mail', 'smtpport')
         self.smtpuser = ConfigSectionMap(Config, 'mail')['smtpuser']
@@ -223,7 +222,7 @@ def printDebugOutput(con, prepend):
         for row in cursel:
             print("{0}: {1} | {2} | {3} | {4} | {5} | {6} | {7} | {8} | {9} | {10} | {11}".format(
                 prepend, row[0], row[1], row[2], row[3],
-                row[4], row[5], row[6], row[7], row[8], row[9], row[10], row[11]))
+                row[4], row[5], row[6], row[7], row[8], row[9], row[10]))
         con.commit()
     except sqlite3.Error as e:
         sys.exit("printDebugOutput - An error occurred: {0}".format(e.args[0]))
@@ -265,12 +264,12 @@ def parseInput(tpfile, con, configfile):
                     repeatinterval = re.search(r'\@repeat\((.*?)\)', line).group(1)
                 if '@due' in line:
                     duedate = re.search(r'\@due\((.*?)\)', line).group(1)
-                    duealert = datetime.date(parser.parse(duedate)) \
-                        - timedelta(**{sett.duedelta: sett.dueinterval})
+                    duealert = datetime.datetime.date(dateutil.parser.parse(duedate)) \
+                        - datetime.timedelta(**{sett.duedelta: sett.dueinterval})
                     if duealert <= TODAY \
-                            <= datetime.date(parser.parse(duedate)):
+                            <= datetime.datetime.date(dateutil.parser.parse(duedate)):
                         duesoon = True
-                    if datetime.date(parser.parse(duedate)) < TODAY:
+                    if datetime.datetime.date(dateutil.parser.parse(duedate)) < TODAY:
                         overdue = True
                 if '@start' in line and '@prio' in line:
                     priotag = re.search(r'\@prio\((.*?)\)', line).group(1)
@@ -393,12 +392,12 @@ def setRepeat(con):
                 delta = 'month'
             if delta == 'days' or delta == 'weeks':
                 newstartdate = \
-                    datetime.date(parser.parse(row[1])) \
-                    + timedelta(**{delta: intnum})
+                    datetime.datetime.date(dateutil.parser.parse(row[1])) \
+                    + datetime.timedelta(**{delta: intnum})
             if delta == 'month':
                 newstartdate = \
-                    datetime.date(parser.parse(row[1])) \
-                    + relativedelta(months=intnum)
+                    datetime.datetime.date(dateutil.parser.parse(row[1])) \
+                    + dateutil.relativedelta.relativedelta(months=intnum)
 
             # instantiate anything which is older or equal than today
             if newstartdate <= TODAY:
@@ -587,13 +586,13 @@ def sendMail(content, subject, sender, receiver, text_subtype, encrypted, config
     content = content.encode("utf-8")
     try:
         if encrypted is False:
-            msg = MIMEText(content, text_subtype)
+            msg = email.mime.text.MIMEText(content, text_subtype)
         elif encrypted is True:
             if sett.encryptmail:
                 gpg = gnupg.GPG(gnupghome=sett.gnupghome)
                 gpg.encoding = 'utf-8'
                 contentenc = gpg.encrypt(content, sett.targetfingerprint, always_trust=True)
-                msg = MIMEText(str(contentenc), text_subtype)
+                msg = email.mime.text.MIMEText(str(contentenc), text_subtype)
             else:
                 raise "encryption required, but not set in config file"
         msg['Subject'] = subject

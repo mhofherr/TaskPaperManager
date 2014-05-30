@@ -6,7 +6,6 @@ from dateutil.relativedelta import relativedelta
 import tpm.tpm
 
 
-
 @fixture
 def my_initDB():
     mycon = tpm.tpm.initDB()
@@ -228,11 +227,18 @@ def test_SetTags3():
         assert '@duesoon' not in row[0]
 
 
-def test_parseArgs():
+def test_parseArgs1():
     (myinfile, myconfigfile, mymode) = tpm.tpm.parseArgs(['-i', 'myinfile', '-c', 'myconfigfile', '-m', 'review'])
     assert myinfile == 'myinfile'
     assert myconfigfile == 'myconfigfile'
     assert mymode == 'review'
+
+
+def test_parseArgs2():
+    (myinfile, myconfigfile, mymode) = tpm.tpm.parseArgs(['-i', 'myinfile', '-c', 'myconfigfile', '-m', 'daily'])
+    assert myinfile == 'myinfile'
+    assert myconfigfile == 'myconfigfile'
+    assert mymode == 'daily'
 
 
 def test_setrepeat():
@@ -272,7 +278,7 @@ def test_setrepeat():
         assert row[0] == 3
 
 
-def test_parseConfig():
+def test_settings():
     mytext = ""
     mytext = mytext + "[tpm]\n"
     mytext = mytext + "debug: True\n"
@@ -315,45 +321,59 @@ def test_parseConfig():
     mytext = mytext + "\n"
 
     tpm.tpm.myFile(mytext, '/tmp/test.cfg', 'w')
-    (DEBUG, SENDMAIL, SENDMAILHOME, SENDMAILWORK, SMTPSERVER, SMTPPORT,
-    SMTPUSER, SMTPPASSWORD, PUSHOVER, DUEDELTA, DUEINTERVAL, ENCRYPTMAIL,
-    GNUPGHOME, PUSHOVERTOKEN, PUSHOVERUSER, TARGETFINGERPRINT, SOURCEEMAIL,
-    DESTHOMEEMAIL, DESTWORKEMAIL, REVIEWPATH, REVIEWAGENDA, REVIEWPROJECTS,
-    REVIEWCUSTOMERS, REVIEWWAITING, REVIEWOUTPUTPDF, REVIEWOUTPUTHTML,
-    REVIEWOUTPUTMD, REVIEWHOME, REVIEWWORK, PUSHOVERHOME, PUSHOVERWORK) = tpm.tpm.parseConfig('/tmp/test.cfg')
+    sett = tpm.tpm.settings('/tmp/test.cfg')
 
-    assert DEBUG is True
-    assert SENDMAIL is False
-    assert SENDMAILHOME is True
-    assert SENDMAILWORK is False
-    assert SMTPSERVER == 'mail.user.test'
-    assert SMTPPORT == 587
-    assert SMTPUSER == 'user'
-    assert SMTPPASSWORD == 'password'
-    assert PUSHOVER is False
-    assert DUEDELTA == 'days'
-    assert DUEINTERVAL == 3
-    assert ENCRYPTMAIL is True
-    assert GNUPGHOME == '/Users/user/.gnupg'
-    assert PUSHOVERTOKEN == '2345678901'
-    assert PUSHOVERUSER == '3456789012'
-    assert TARGETFINGERPRINT == '1234567890'
-    assert SOURCEEMAIL == 'source@test.de'
-    assert DESTHOMEEMAIL == 'desthome@test.de'
-    assert DESTWORKEMAIL == 'destwork@test.de'
-    assert REVIEWPATH == '/Users/user/review/'
-    assert REVIEWAGENDA is True
-    assert REVIEWPROJECTS is True
-    assert REVIEWCUSTOMERS is True
-    assert REVIEWWAITING is True
-    assert REVIEWOUTPUTPDF is True
-    assert REVIEWOUTPUTHTML is True
-    assert REVIEWOUTPUTMD is True
-    assert REVIEWHOME is True
-    assert REVIEWWORK is True
-    assert PUSHOVERHOME is True
-    assert PUSHOVERWORK is False
+    assert sett.debug is True
+    assert sett.sendmail is False
+    assert sett.sendmailhome is True
+    assert sett.sendmailwork is False
+    assert sett.smtpserver == 'mail.user.test'
+    assert sett.smtpport == 587
+    assert sett.smtpuser == 'user'
+    assert sett.smtppassword == 'password'
+    assert sett.pushover is False
+    assert sett.duedelta == 'days'
+    assert sett.dueinterval == 3
+    assert sett.encryptmail is True
+    assert sett.gnupghome == '/Users/user/.gnupg'
+    assert sett.pushovertoken == '2345678901'
+    assert sett.pushoveruser == '3456789012'
+    assert sett.targetfingerprint == '1234567890'
+    assert sett.sourceemail == 'source@test.de'
+    assert sett.desthomeemail == 'desthome@test.de'
+    assert sett.destworkemail == 'destwork@test.de'
+    assert sett.reviewpath == '/Users/user/review/'
+    assert sett.reviewagenda is True
+    assert sett.reviewprojects is True
+    assert sett.reviewcustomers is True
+    assert sett.reviewwaiting is True
+    assert sett.reviewoutputpdf is True
+    assert sett.reviewoutputhtml is True
+    assert sett.reviewoutputmd is True
+    assert sett.reviewhome is True
+    assert sett.reviewwork is True
+    assert sett.pushoverhome is True
+    assert sett.pushoverwork is False
 
+
+def test_usage(capsys):
+    tpm.tpm.usage()
+    out, err = capsys.readouterr()
+    assert out == 'tpm.py -i <inputfile> -c <configfile> -m <mode:daily|review>\n'
+
+
+def test_printDebugOutput(capsys):
+    mycon = my_initDB()
+    curin = mycon.cursor()
+    curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
+        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ( 1, '2d', 'work', '- testtask1 @prio(high) @repeat(2d) @work @start(2999-12-31)', 0, 1,
+        '2d', '2999-12-31', 0, 0, 0))
+    mycon.commit()
+    tpm.tpm.printDebugOutput(mycon, 'test')
+    out, err = capsys.readouterr()
+    assert out == 'test: 1 | 2d | work | - testtask1 @prio(high) @repeat(2d) @work @start(2999-12-31) | 0 | 1 | 2d | 2999-12-31 | 0 | 0 | 0\n'
 
 if __name__ == '__main__':
     pytest.main()
