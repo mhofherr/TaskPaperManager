@@ -51,8 +51,11 @@ TODAY = datetime.datetime.date(datetime.datetime.now())
 DAYBEFORE = TODAY - datetime.timedelta(days=1)
 
 
-# create in-memory db instance
 def initDB():
+    """create a new sqlite in-memory db instance and create the table structure
+
+    :returns: connection object for the database"""
+
     try:
         conn = sqlite3.connect(':memory:', isolation_level="DEFERRED")
         conn.row_factory = sqlite3.Row
@@ -84,13 +87,18 @@ def initDB():
 
 
 def usage():
+    """Prints usage information."""
+
     print('tpm.py -i <inputfile> -c <configfile> -m <mode:daily|review>')
-    """
-    Prints usage information.
-    """
 
 
 def parseArgs(argv):
+    """parse and verify the commandline args
+
+    :param argv: list of commandline arguments, minus the first
+    :returns: path to taskpaper file, path to the config file and the mode (daily|review) of operation
+    """
+
     inputfile = ''
     configfile = ''
     modus = ''
@@ -118,8 +126,11 @@ def parseArgs(argv):
     return (inputfile, configfile, modus)
 
 
-# filter unnecessary spaces
 def sanitizer(con):
+    """removes whitespaces and checks for valid tags
+
+    :param con: the database connection object"""
+
     try:
         cursel = con.cursor()
         curup = con.cursor()
@@ -147,8 +158,14 @@ def sanitizer(con):
         sys.exit("An error occurred: {0}".format(e.args[0]))
 
 
-# remove elements from a taskpaper string
 def removeTaskParts(instring, removelist):
+    """"remove elements from a taskpaper string
+
+    :param instring: a string to be parsed
+    :param removelist: the tags to be removed from the string
+    :returns: the new strings minus the removed tags
+    """
+
     outstring = ''
     cut_string = instring.split(' ')
     cut_removelist = removelist.split(' ')
@@ -162,7 +179,7 @@ def removeTaskParts(instring, removelist):
 
 
 class settings:
-    """ contains the settings for TPN, parsed from the config file """
+    """ contains the settings for TPM, parsed from the config file """
 
     def __init__(self, configfile):
         Config = configparser.ConfigParser()
@@ -201,6 +218,13 @@ class settings:
 
 
 def ConfigSectionMap(Config, section):
+    """"helper function for parsing the config file
+
+    :param Config: the name of the configuration file
+    :param section: what value from the config file is required
+    :returns: the relevant value in the config file
+    """
+
     dict1 = {}
     options = Config.options(section)
     for option in options:
@@ -215,6 +239,12 @@ def ConfigSectionMap(Config, section):
 
 
 def printDebugOutput(con, prepend):
+    """standardized debug output generator - prints to stdout
+
+    :param con: the database connection
+    :param prepend: a string to be prepended to the debug output
+    """
+
     try:
         cursel = con.cursor()
         cursel.execute("SELECT prio, startdate, project, taskline, done, repeat,\
@@ -229,6 +259,13 @@ def printDebugOutput(con, prepend):
 
 
 def parseInput(tpfile, con, configfile):
+    """parses the taskpaper file and populates the database with the content
+
+    :param tpfile: the path to the taskpaper file
+    :param con: the database connection
+    :param configfile: the config file for tpm
+    """
+
     sett = settings(configfile)
     try:
         cur = con.cursor()
@@ -305,8 +342,12 @@ def parseInput(tpfile, con, configfile):
         sys.exit("parsing input file to db failed; {0}".format(exc))
 
 
-# remove overdue and duesoon tags
 def removeTags(con):
+    """remove overdue and duesoon tags
+
+    :param con: the database connection
+    """
+
     try:
         cursel = con.cursor()
         curup = con.cursor()
@@ -320,8 +361,12 @@ def removeTags(con):
         sys.exit("removeTags - An error occurred: {0}".format(e.args[0]))
 
 
-# set overdue and duesoon tags
 def setTags(con):
+    """set overdue and duesoon tags
+
+    :param con: the database connection
+    """
+
     try:
         cursel = con.cursor()
         curup = con.cursor()
@@ -338,8 +383,12 @@ def setTags(con):
         sys.exit("setTags - An error occurred: {0}".format(e.args[0]))
 
 
-# check @done and mark for later move to archive
 def archiveDone(con):
+    """check @done and mark for later move to archive
+
+    :param con: the database connection
+    """
+
     try:
         cursel = con.cursor()
         curup = con.cursor()
@@ -355,8 +404,11 @@ def archiveDone(con):
         sys.exit("archiveDone - An error occurred: {0}".format(e.args[0]))
 
 
-# check @maybe and mark for later move to maybe file
 def archiveMaybe(con):
+    """check @maybe and mark for later move to maybe file
+
+    :param con: the database connection"""
+
     try:
         cursel = con.cursor()
         curup = con.cursor()
@@ -371,8 +423,11 @@ def archiveMaybe(con):
         sys.exit("archiveMaybe - An error occurred: {0}".format(e.args[0]))
 
 
-# check repeat statements; instantiate new tasks if startdate + repeat interval = today
 def setRepeat(con):
+    """check repeat statements; instantiate new tasks if startdate + repeat interval = today
+
+    :param con: the database connection"""
+
     try:
         cursel = con.cursor()
         curin = con.cursor()
@@ -412,7 +467,7 @@ def setRepeat(con):
 
                 # ! create new instance of repeat task
                 try:
-                    # ! todo: repeatinterval durch NULL ersetzen
+                    # ! todo: repeatinterval should be NULL, not '-'
                     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
                         repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
                         (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -436,7 +491,12 @@ def setRepeat(con):
         sys.exit("setRepeat - An error occurred: {0}".format(e.args[0]))
 
 
-def printDebug(con, tpfile):
+def printDebug(con):
+    """writes tasks to stdout; used if debug=True instead of actually writing to output file
+
+    :param con: the database connection
+    """
+
     try:
         print('work:')
         cursel = con.cursor()
@@ -481,6 +541,12 @@ def printDebug(con, tpfile):
 
 
 def createOutFile(con):
+    """prepare the text for the different output files
+
+    :param con: the database connection
+    :returns: the text for the new taskpaper file, archive file and maybe file
+    """
+
     try:
         mytxt = ''
         mytxt = 'work:\n'
@@ -526,6 +592,13 @@ def createOutFile(con):
 
 
 def createTaskListHighOverdue(con, destination):
+    """prepares a list of tasks with @overdue or @prio(high)
+
+    :param con: the database connection
+    :param destination: run for 'work' or 'home' tasks?
+    :returns: the result tasks as text string
+    """
+
     try:
         mytxt = '## Open tasks with prio high:\n'
         cursel = con.cursor()
@@ -550,11 +623,23 @@ def createTaskListHighOverdue(con, destination):
 
 
 def markdown2html(text):
+    """convert markdown text to html output
+
+    :param text: input text
+    :returns: the html output
+    """
+
     text = text.encode("utf-8")
     return markdown2.markdown(text)
 
 
 def html2pdf(html, outfile):
+    """convert html input to pdf output
+
+    :param html: the html input
+    :param outfile: the output pdf file
+    """
+
     html = html.encode("utf-8")
     pdf = pisa.CreatePDF(
         cStringIO.StringIO(html),
@@ -566,6 +651,12 @@ def html2pdf(html, outfile):
 
 
 def sendPushover(content, configfile):
+    """send text to pushover service via http-request
+
+    :param content: the text for the poushover message
+    :param configfile: the tpm config file
+    """
+
     sett = settings(configfile)
     content = content.encode("utf-8")
     try:
@@ -582,6 +673,17 @@ def sendPushover(content, configfile):
 
 
 def sendMail(content, subject, sender, receiver, text_subtype, encrypted, configfile):
+    """sends email directly via starttls connection to smtp server
+
+    :param content: the text messages for the mail
+    :param subject: the subject of the mail
+    :param sender: the sender email address
+    :param receiver: the receiver email address
+    :param text_subtype: the MIME type for the email
+    :param encrypted: boolean - encrypt the mail with gpg?
+    :param configfile: the tpm config file
+    """
+
     sett = settings(configfile)
     content = content.encode("utf-8")
     try:
@@ -614,15 +716,19 @@ def sendMail(content, subject, sender, receiver, text_subtype, encrypted, config
         sys.exit("sending email failed; {0}".format(exc))
 
 
-def createMail(con, destination, encrypted, configfile):
+def createMail(con, destination, configfile):
+    """create text for email output
+
+    :param con: the database connection
+    :param destination: either 'home' or 'work'
+    :param configfile: the tpm config file
+    """
+    # ! todo: create html automatically from markdown
+
     sett = settings(configfile)
     if sett.sendmail:
         try:
             cursel = con.cursor()
-
-            source = sett.sourceemail
-            desthome = sett.desthomeemail
-            destwork = sett.destworkemail
 
             mytxt = '<html><head><title>Tasks for Today</title></head><body>'
             mytxt = '{0}<h1>Tasks for Today</h1><p>'.format(mytxt)
@@ -670,18 +776,28 @@ def createMail(con, destination, encrypted, configfile):
                 mytxtasc = '{0}{1}\n'.format(mytxtasc, taskstring.strip())
             mytxt = '{0}</table></body></html>'.format(mytxt)
 
-            if destination == 'home':
-                sendMail(mytxt, 'Taskpaper daily overview', source, desthome, 'html', False, configfile)
-            elif destination == 'work':
-                sendMail(mytxtasc, 'Taskpaper daily overview', source, destwork, 'text', True, configfile)
-            else:
-                raise "wrong destination"
+            # if destination == 'home':
+            #     sendMail(mytxt, 'Taskpaper daily overview', source, desthome, 'html', False, configfile)
+            # elif destination == 'work':
+            #     sendMail(mytxtasc, 'Taskpaper daily overview', source, destwork, 'text', True, configfile)
+            # else:
+            #     raise "wrong destination"
 
         except Exception as exc:
             sys.exit("creating email failed; {0}".format(exc))
+        return (mytxt, mytxtasc)
 
 
 def createUniqueList(con, element, group):
+    """creates a unique list of tag contents for a given group
+     e.g. a unique list of all customers (derived from @customer)
+
+     :param con: the database connection
+     :param element: the tag to parse the unique list from
+     :param group: search in which group ('work' or 'home')
+     :returns: a list of unique names from `element´
+     """
+
     mylist = []
     try:
         cursel = con.cursor()
@@ -698,6 +814,16 @@ def createUniqueList(con, element, group):
 
 
 def createTaskList(con, element, headline, mylist, group):
+    """create a list of tasks for specified content
+
+    :param con: the database connection
+    :param element: the tag to user
+    :param headline: the headline to use for the output
+    :param mylist: a list of unique names
+    :param group: search in which group ('work' or 'home')
+    :returns: text string with task list
+    """
+
     mytasks = '\n\n## {0}\n'.format(headline)
     for listelement in mylist:
         mytasks = '{0}\n\n### {1}\n'.format(mytasks, listelement)
@@ -715,6 +841,13 @@ def createTaskList(con, element, headline, mylist, group):
 
 
 def myFile(mytext, filename, mode):
+    """helper function for file operations; append and write
+
+    :param mytext: text for file write
+    :param filename: the target filename
+    :param mode: 'w' for write new and 'a' for append existing
+    """
+
     try:
         mytext = mytext.encode("utf-8")
         outfile = open(filename, mode)
@@ -738,7 +871,7 @@ def main():
         setRepeat(mycon)
         sanitizer(mycon)
         if sett.debug:
-            printDebug(mycon, inputfile)
+            printDebug(mycon)
         else:
             (mytxt, mytxtdone, mytxtmaybe) = createOutFile(mycon)
             shutil.move(inputfile, '{0}backup/todo_{1}.txt'.format(inputfile[:-8], TODAY))
@@ -746,10 +879,17 @@ def main():
             myFile(mytxtdone, '{0}archive.txt'.format(inputfile[:-8]), 'a')
             myFile(mytxtmaybe, '{0}maybe.txt'.format(inputfile[:-8]), 'a')
         if sett.sendmail:
+            source = sett.sourceemail
+            desthome = sett.desthomeemail
+            destwork = sett.destworkemail
             if sett.sendmailhome:
-                createMail(mycon, 'home', False, configfile)
+                (mytxt, mytxtasc) = createMail(mycon, 'home', configfile)
+                sendMail(mytxt, 'Taskpaper daily overview', source,
+                         desthome, 'html', False, configfile)
             if sett.sendmailwork:
-                createMail(mycon, 'work', True, configfile)
+                (mytxt, mytxtasc) = createMail(mycon, 'work', configfile)
+                sendMail(mytxtasc, 'Taskpaper daily overview', source,
+                         destwork, 'text', True, configfile)
         if sett.pushover:
             if sett.pushoverhome:
                 pushovertxt = createTaskListHighOverdue(mycon, 'home')
@@ -780,12 +920,12 @@ def main():
             if sett.reviewwaiting:
                 waitinglist = createUniqueList(mycon, 'waiting', group)
                 waitingtasks = createTaskList(mycon, 'waiting',
-                    'Waiting For', waitinglist, group)
+                                              'Waiting For', waitinglist, group)
                 reviewtext = '{0}\n{1}'.format(reviewtext, waitingtasks)
             if sett.reviewcustomers:
                 customerlist = createUniqueList(mycon, 'customer', group)
                 customertasks = createTaskList(mycon, 'customer',
-                    'Customers', customerlist, group)
+                                               'Customers', customerlist, group)
                 reviewtext = '{0}\n{1}'.format(reviewtext, customertasks)
             if sett.reviewprojects:
                 projectlist = createUniqueList(mycon, 'project', group)

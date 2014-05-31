@@ -11,6 +11,7 @@ It provides the following features:
 * Sort the list (primary sort criterium: @prio, secondary: @start)
 * Copy tasks with the tag @maybe in a dedicated maybe list and remove from master list
 * Provide a weekly review report (pdf, html, markdown)
+* verify validity of required tags
 
 ## Build Status
 
@@ -49,13 +50,12 @@ TaskPaperParser support two modes of execution:
 
 ## Python versions
 
-TPM is developed on Python 2.7. Support for Python 3.4 is n the queue.
+TPM is developed on Python 2.7. Support for Python 3.4 is in the queue.
 
 ## Future features
 
 * Full support for Python 3.4
 * Support for multi-lin tasks (1-n comment lines per task)
-* sanitize the tags: bring the tags in a fixed order; detection malformed/missing tags
 * support pgp/mime for sending encrypted emails (to support encrypted html emails)
 * provide a pypi package
 
@@ -157,8 +157,15 @@ The following tags are actively used in TPM:
 * @repeat(): repeating task; a special group of tasks which will be instantiated as new tasks after a certain interval (see details below)
 * @home: only used in @repeat tasks; will instantiate the new task in the *home* section  
 * @work: only used in @repeat tasks; will instantiate the new task in the *work* section
+* @note: show that the task has notes added (additional lines); necessary since TaskPaper does not show notes when filtering for tags
 
 Any other tags are supported insofar, as they are not touched by TPM.
+
+## Validity of tags
+TPM performs some base checks regarding the validity of tags. The rules are:
+
+* tasks in 'work' and 'home': at least require '@prio' and 'start'
+* tasks in 'Repeat': at least require '@prio', '@start', '@repeat' and either '@work' or '@home'
 
 ## Repeating tasks
 Tasks which will be instantiated at regular intervals are marked with the tag "@repeat()". The value within the parentheses of the @repeat-tag determine the interval. The first value is a number, the second determines the unit (where "d"=day, "w"=week and "m"=month). So, **@repeat(2w)** will instantiate a new task with the same name every 2 weeks, starting from the @start-date. The original @repeat-task will stay in place, only a new @start-date will be set.
@@ -182,6 +189,8 @@ TPM requires all tasks in one task file, formated in TaskPaper syntax. A TaskPap
         - repeat task 1 @prio(high) @repeat(2d) @work @start(2014-05-16)
         - repeat task 2 @prio(medium) @repeat(3w) @home @start(2014-05-16)
         - repeat task 3 @prio(high) @repeat(6m) @work @start(2014-05-16)
+
+    Error:
 
     INBOX:
 
