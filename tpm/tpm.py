@@ -549,7 +549,7 @@ def printGroup(con, destination):
                 mytxt = '{0}{1}\n'.format(mytxt, rownote[0])
     except sqlite3.Error as e:
         sys.exit("printDebugGroup - An error occurred: {0}".format(e.args[0]))
-    mytxt = mytxt.encode("utf-8")
+    #mytxt = mytxt.encode("utf-8")
     return mytxt
 
 
@@ -582,23 +582,19 @@ def createOutFile(con):
     :returns: the text for the new taskpaper file, archive file and maybe file
     """
 
-    mytxt = ''
     mytxt = 'work:\n'
-    mytxt = mytxt + printGroup(con, 'work')
+    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'work'))
     mytxt = '{0}\nhome:\n'.format(mytxt)
-    mytxt = mytxt + printGroup(con, 'home')
+    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'home'))
     mytxt = '{0}\nRepeat:\n'.format(mytxt)
-    mytxt = mytxt + printGroup(con, 'Repeat')
+    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'Repeat'))
     mytxt = '{0}\nError:\n'.format(mytxt)
-    mytxt = mytxt + printGroup(con, 'Error')
+    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'Error'))
     mytxt = '{0}\nINBOX:\n'.format(mytxt)
-    mytxt = mytxt + printGroup(con, 'INBOX')
+    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'INBOX'))
 
-    mytxtdone = ''
-    mytxtdone = mytxtdone + printGroup(con, 'Archive')
-
-    mytxtmaybe = ''
-    mytxtdone = mytxtdone + printGroup(con, 'Maybe')
+    mytxtdone = printGroup(con, 'Archive')
+    mytxtmaybe = printGroup(con, 'Maybe')
 
     return (mytxt, mytxtdone, mytxtmaybe)
 
