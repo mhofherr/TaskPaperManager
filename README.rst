@@ -14,6 +14,8 @@ TaskPaper file. It provides the following features:
 -  Copy tasks with the tag @maybe in a dedicated maybe list and remove
    from master list
 -  Provide a weekly review report (pdf, html, markdown)
+-  verify validity of required tags
+-  set a @note tag if task has associated notes
 
 Build Status
 ------------
@@ -61,27 +63,21 @@ TaskPaperParser support two modes of execution:
 Python versions
 ---------------
 
-TPM is developed on Python 2.7. Support for Python 3.4 is planned for
-the 1.1.0 release.
+TPM is developed on Python 2.7. Support for Python 3.4 is in the queue.
 
 Future features
 ---------------
 
 -  Full support for Python 3.4
--  Support for multi-lin tasks (1-n comment lines per task)
--  sanitize the tags: bring the tags in a fixed order; detection
-   malformed/missing tags
 -  support pgp/mime for sending encrypted emails (to support encrypted
    html emails)
 -  provide a pypi package
--  Technical: change to sqlite in-memory database for data management
 
 Current limitations
 -------------------
 
--  One task - one line: comment line for tasks are currently not
-   supported
--  Stacked projects: there is no multi-level support of projects
+-  Fixed set of TaskPaper projects (the lines with the colon); see
+   ``Projects`` below for details
 
 Configuration
 -------------
@@ -199,8 +195,23 @@ The following tags are actively used in TPM:
    the *home* section
 -  @work: only used in @repeat tasks; will instantiate the new task in
    the *work* section
+-  @note: show that the task has notes added (additional lines);
+   necessary since TaskPaper does not show notes when filtering for tags
 
 Any other tags are supported insofar, as they are not touched by TPM.
+
+Validity of tags
+----------------
+
+TPM performs some base checks regarding the validity of tags. The rules
+are:
+
+-  tasks in 'work' and 'home': at least require '@prio' and 'start'
+-  tasks in 'Repeat': at least require '@prio', '@start', '@repeat' and
+   either '@work' or '@home'
+
+If a task does not fulfill these requirements it is sorted in project
+'Error'
 
 Repeating tasks
 ---------------
@@ -243,6 +254,8 @@ TaskPaper file sample for TPM looks as follows:
         - repeat task 1 @prio(high) @repeat(2d) @work @start(2014-05-16)
         - repeat task 2 @prio(medium) @repeat(3w) @home @start(2014-05-16)
         - repeat task 3 @prio(high) @repeat(6m) @work @start(2014-05-16)
+
+    Error:
 
     INBOX:
 
@@ -302,6 +315,16 @@ via taskpaper@mhofherr.de or
 Changelog
 ---------
 
+Version 1.2.0
+~~~~~~~~~~~~~
+
+-  Support for notes: each task can now have 1-n note lines
+-  tasks with notes now automatically get the tag ``@note``
+-  added inline docs for sphinx
+-  added example config file
+-  removed global variables
+-  some refactoring
+
 Version 1.1.0
 ~~~~~~~~~~~~~
 
@@ -311,7 +334,7 @@ Version 1.1.0
 -  bugfix: @repeat only considered 1st digit of repeat interval; now
    support multi-digits
 -  more tests
--  some fefactoring
+-  some refactoring
 
 Version 1.0.0
 ~~~~~~~~~~~~~

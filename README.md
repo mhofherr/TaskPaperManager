@@ -12,6 +12,7 @@ It provides the following features:
 * Copy tasks with the tag @maybe in a dedicated maybe list and remove from master list
 * Provide a weekly review report (pdf, html, markdown)
 * verify validity of required tags
+* set a @note tag if task has associated notes  
 
 ## Build Status
 
@@ -55,15 +56,12 @@ TPM is developed on Python 2.7. Support for Python 3.4 is in the queue.
 ## Future features
 
 * Full support for Python 3.4
-* Support for multi-lin tasks (1-n comment lines per task)
 * support pgp/mime for sending encrypted emails (to support encrypted html emails)
 * provide a pypi package
 
 ## Current limitations
 
-* One task - one line: comment line for tasks are currently not supported
-* Stacked projects: there is no multi-level support of projects
-
+* Fixed set of TaskPaper projects (the lines with the colon); see `Projects` below for details
 
 ## Configuration
 
@@ -167,6 +165,8 @@ TPM performs some base checks regarding the validity of tags. The rules are:
 * tasks in 'work' and 'home': at least require '@prio' and 'start'
 * tasks in 'Repeat': at least require '@prio', '@start', '@repeat' and either '@work' or '@home'
 
+If a task does not fulfill these requirements it is sorted in project 'Error' 
+
 ## Repeating tasks
 Tasks which will be instantiated at regular intervals are marked with the tag "@repeat()". The value within the parentheses of the @repeat-tag determine the interval. The first value is a number, the second determines the unit (where "d"=day, "w"=week and "m"=month). So, **@repeat(2w)** will instantiate a new task with the same name every 2 weeks, starting from the @start-date. The original @repeat-task will stay in place, only a new @start-date will be set.
 All repeat-tasks must be in a dedicated taskpaper group called "Repeat:". 
@@ -220,13 +220,22 @@ Do you  have questions or comments about `TaskPaperManager`? Contact me via [tas
 
 ## Changelog
 
+### Version 1.2.0
+
+* Support for notes: each task can now have 1-n note lines
+* tasks with notes now automatically get the tag `@note`
+* added inline docs for sphinx
+* added example config file
+* removed global variables
+* some refactoring
+
 ### Version 1.1.0
 
 * Moved from namedTuples to sqlite3 in-memory database
 * prepared support for multiline tasks (a task line with multiple comment lines)
 * bugfix: @repeat only considered 1st digit of repeat interval; now support multi-digits
 * more tests
-* some fefactoring
+* some refactoring
 
 ### Version 1.0.0
 

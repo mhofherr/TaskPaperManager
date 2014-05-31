@@ -19,7 +19,7 @@ def test_initDB():
     for row in cursel:
         assert row[0] == 1
     #assert cursel.fetchone() == 1
-    cursel.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='comments'")
+    cursel.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='notes'")
     #assert cursel.fetchone() == 1
     for row in cursel:
         assert row[0] == 1
@@ -84,98 +84,98 @@ def test_removeTaskParts2():
     assert taskstring.strip() == 'testtask'
 
 
-def test_sanitizer1():
-    mycon = my_initDB()
-    cursel = mycon.cursor()
-    curin = mycon.cursor()
-    curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        ( 1, '2999-12-31', 'home', '   -      testtask        @prio(high)      @start(2999-12-31)      @overdue', 0, 0,
-        '-', '2999-12-31', 0, 1, 0))
-    mycon.commit()
-    tpm.tpm.sanitizer(mycon)
-    cursel.execute("SELECT taskline FROM tasks")
-    for row in cursel:
-        assert row[0] == '- testtask @prio(high) @start(2999-12-31) @overdue'
+# def test_sanitizer1():
+#     mycon = my_initDB()
+#     cursel = mycon.cursor()
+#     curin = mycon.cursor()
+#     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
+#         repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
+#         (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+#         ( 1, '2999-12-31', 'home', '   -      testtask        @prio(high)      @start(2999-12-31)      @overdue', 0, 0,
+#         '-', '2999-12-31', 0, 1, 0))
+#     mycon.commit()
+#     tpm.tpm.sanitizer(mycon)
+#     cursel.execute("SELECT taskline FROM tasks")
+#     for row in cursel:
+#         assert row[0] == '- testtask @prio(high) @start(2999-12-31) @overdue'
 
 
-def test_sanitizer2():
-    mycon = my_initDB()
-    cursel = mycon.cursor()
-    curin = mycon.cursor()
-    curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        ( 1, '2999-12-31', 'home', '- testtask @start(2999-12-31)', 0, 0,
-        '-', '2999-12-31', 0, 1, 0))
-    curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        ( 1, '2999-12-31', 'home', '- testtask @prio(medium)', 0, 0,
-        '-', '2999-12-31', 0, 1, 0))
-    curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        ( 1, '2999-12-31', 'home', '- testtask @duesoon', 0, 0,
-        '-', '2999-12-31', 0, 1, 0))
-    mycon.commit()
-    tpm.tpm.sanitizer(mycon)
-    cursel.execute("SELECT count(*) FROM tasks where project='Error'")
-    for row in cursel:
-        assert row[0] == 3
+# def test_sanitizer2():
+#     mycon = my_initDB()
+#     cursel = mycon.cursor()
+#     curin = mycon.cursor()
+#     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
+#         repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
+#         (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+#         ( 1, '2999-12-31', 'home', '- testtask @start(2999-12-31)', 0, 0,
+#         '-', '2999-12-31', 0, 1, 0))
+#     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
+#         repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
+#         (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+#         ( 1, '2999-12-31', 'home', '- testtask @prio(medium)', 0, 0,
+#         '-', '2999-12-31', 0, 1, 0))
+#     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
+#         repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
+#         (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+#         ( 1, '2999-12-31', 'home', '- testtask @duesoon', 0, 0,
+#         '-', '2999-12-31', 0, 1, 0))
+#     mycon.commit()
+#     tpm.tpm.sanitizer(mycon)
+#     cursel.execute("SELECT count(*) FROM tasks where project='Error'")
+#     for row in cursel:
+#         assert row[0] == 3
 
 
-def test_sanitizer3():
-    mycon = my_initDB()
-    cursel = mycon.cursor()
-    curin = mycon.cursor()
-    curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        ( 1, '2999-12-31', 'home', '- testtask @repeat(2w) @prio(medium) @start(2999-12-31) @work', 0, 0,
-        '-', '2999-12-31', 0, 1, 0))
-    curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        ( 1, '2999-12-31', 'home', '- testtask @repeat(2w) @prio(medium) @start(2999-12-31) @home', 0, 0,
-        '-', '2999-12-31', 0, 1, 0))
-    mycon.commit()
-    tpm.tpm.sanitizer(mycon)
-    cursel.execute("SELECT count(*) FROM tasks where project='Error'")
-    for row in cursel:
-        assert row[0] == 0
+# def test_sanitizer3():
+#     mycon = my_initDB()
+#     cursel = mycon.cursor()
+#     curin = mycon.cursor()
+#     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
+#         repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
+#         (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+#         ( 1, '2999-12-31', 'home', '- testtask @repeat(2w) @prio(medium) @start(2999-12-31) @work', 0, 0,
+#         '-', '2999-12-31', 0, 1, 0))
+#     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
+#         repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
+#         (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+#         ( 1, '2999-12-31', 'home', '- testtask @repeat(2w) @prio(medium) @start(2999-12-31) @home', 0, 0,
+#         '-', '2999-12-31', 0, 1, 0))
+#     mycon.commit()
+#     tpm.tpm.sanitizer(mycon)
+#     cursel.execute("SELECT count(*) FROM tasks where project='Error'")
+#     for row in cursel:
+#         assert row[0] == 0
 
 
-def test_sanitizer4():
-    mycon = my_initDB()
-    cursel = mycon.cursor()
-    curin = mycon.cursor()
-    curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        ( 1, '2999-12-31', 'Repeat', '- testtask @repeat(2w) @prio(medium) @start(2999-12-31)', 0, 0,
-        '-', '2999-12-31', 0, 1, 0))
-    curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        ( 1, '2999-12-31', 'Repeat', '- testtask @repeat(2w) @prio(medium) @work', 0, 0,
-        '-', '2999-12-31', 0, 1, 0))
-    curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        ( 1, '2999-12-31', 'Repeat', '- testtask @repeat(2w) @start(2999-12-31) @work', 0, 0,
-        '-', '2999-12-31', 0, 1, 0))
-    curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        ( 1, '2999-12-31', 'Repeat', '- testtask @start(2999-12-31) @prio(medium) @work', 0, 0,
-        '-', '2999-12-31', 0, 1, 0))
-    mycon.commit()
-    tpm.tpm.sanitizer(mycon)
-    cursel.execute("SELECT count(*) FROM tasks where project='Error'")
-    for row in cursel:
-        assert row[0] == 4
+# def test_sanitizer4():
+#     mycon = my_initDB()
+#     cursel = mycon.cursor()
+#     curin = mycon.cursor()
+#     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
+#         repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
+#         (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+#         ( 1, '2999-12-31', 'Repeat', '- testtask @repeat(2w) @prio(medium) @start(2999-12-31)', 0, 0,
+#         '-', '2999-12-31', 0, 1, 0))
+#     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
+#         repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
+#         (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+#         ( 1, '2999-12-31', 'Repeat', '- testtask @repeat(2w) @prio(medium) @work', 0, 0,
+#         '-', '2999-12-31', 0, 1, 0))
+#     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
+#         repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
+#         (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+#         ( 1, '2999-12-31', 'Repeat', '- testtask @repeat(2w) @start(2999-12-31) @work', 0, 0,
+#         '-', '2999-12-31', 0, 1, 0))
+#     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
+#         repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
+#         (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+#         ( 1, '2999-12-31', 'Repeat', '- testtask @start(2999-12-31) @prio(medium) @work', 0, 0,
+#         '-', '2999-12-31', 0, 1, 0))
+#     mycon.commit()
+#     tpm.tpm.sanitizer(mycon)
+#     cursel.execute("SELECT count(*) FROM tasks where project='Error'")
+#     for row in cursel:
+#         assert row[0] == 4
 
 
 def test_SetTags1():

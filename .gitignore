@@ -6,5 +6,4 @@ TaskPaperManager.egg-info
 build
 dist
 *.pyc
-md2rst.sh
 docs/_build

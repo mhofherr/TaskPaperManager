@@ -2,11 +2,28 @@
 # -*- coding: utf-8 -*-
 
 """
-TaskPaperManager
+# TaskPaperManager
 originally based on a small script for printing a task summary from K. Marchand
 now completely re-written and modified for my own requirements
 
 License: GPL v3 (for details see LICENSE file)
+
+## Data structure
+
+**prio**: priority of the task - high, medium or low; mapped to 1, 2 or 3
+**startdate**: when will the task be visible - format: yyyy-mm-dd
+**project**: with which project is the task associated
+**taskline**: the actual task line
+**done**: is it done?; based on @done tag; boolean
+**repeat**: only for tasks in the project "repeat"; boolean
+**repeatinterval**: the repeat inteval is given by a number followed by an interval type; e.g.
+    2w = 2 weeks
+    3d = 3 days
+    1m = 1 month
+**duedate**: same format as startdate
+**duesoon**: boolean; true if today is duedate minus DUEDELTA in DUEINTERVAL (constants) or less
+**overdue**: boolean; true if today is after duedate
+**maybe**: boolean; true if task should be moved to maybe list
 """
 
 from __future__ import (absolute_import, division, print_function, unicode_literals)
@@ -29,22 +46,6 @@ import sqlite3
 
 from six.moves import configparser
 from six.moves import cStringIO
-
-
-"""Data structure
-prio: priority of the task - high, medium or low; mapped to 1, 2 or 3
-startdate: when will the task be visible - format: yyyy-mm-dd
-project: with which project is the task associated
-taskline: the actual task line
-done: is it done?; based on @done tag; boolean
-repeat: only for tasks in the project "repeat"; boolean
-repeatinterval: the repeat inteval is given by a number followed by an interval type; e.g.
-    2w = 2 weeks
-    3d = 3 days
-    1m = 1 month
-duedate: same format as startdate
-duesoon: boolean; true if today is duedate minus DUEDELTA in DUEINTERVAL (constants) or less
-overdue: boolean; true if today is after duedate"""
 
 
 TODAY = datetime.datetime.date(datetime.datetime.now())
@@ -74,15 +75,15 @@ def initDB():
             overdue INTEGER,
             maybe INTEGER
             )''')
-        cur.execute('''CREATE TABLE comments(
-            commentid INTEGER PRIMARY KEY,
+        cur.execute('''CREATE TABLE notes(
+            noteid INTEGER PRIMARY KEY,
             taskid INTEGER,
-            commentline text,
+            noteline text,
             FOREIGN KEY(taskid) REFERENCES tasks(taskid)
             )''')
         conn.commit()
     except sqlite3.Error as e:
-        sys.exit("An error occurred: {0}".format(e.args[0]))
+        sys.exit("initDB - An error occurred: {0}".format(e.args[0]))
     return conn
 
 
@@ -124,38 +125,6 @@ def parseArgs(argv):
         usage()
         sys.exit()
     return (inputfile, configfile, modus)
-
-
-def sanitizer(con):
-    """removes whitespaces and checks for valid tags
-
-    :param con: the database connection object"""
-
-    try:
-        cursel = con.cursor()
-        curup = con.cursor()
-        # check tasks in project work and home
-        cursel.execute("SELECT taskid, taskline FROM tasks where project = 'work'\
-            or project = 'home'")
-        for row in cursel:
-            if '@prio' not in row[1] or '@start' not in row[1]:
-                curup.execute("UPDATE tasks SET project='Error' WHERE taskid=?", (row[0],))
-            taskstring = ' '.join(row[1].split())
-            curup.execute("UPDATE tasks SET taskline=? WHERE taskid=?",
-                         (taskstring, row[0]))
-        # check tasks in project repeat
-        cursel.execute("SELECT taskid, taskline FROM tasks where project = 'Repeat'")
-        for row in cursel:
-            if '@prio' not in row[1] or '@start' not in row[1] or '@repeat' not in row[1] or not\
-                    (('@work' not in row[1] and '@home' in row[1]) or (('@work' in row[1] and
-                    '@home' not in row[1]))):
-                curup.execute("UPDATE tasks SET project='Error' WHERE taskid=?", (row[0],))
-            taskstring = ' '.join(row[1].split())
-            curup.execute("UPDATE tasks SET taskline=? WHERE taskid=?",
-                         (taskstring, row[0]))
-        con.commit()
-    except sqlite3.Error as e:
-        sys.exit("An error occurred: {0}".format(e.args[0]))
 
 
 def removeTaskParts(instring, removelist):
@@ -239,7 +208,7 @@ def ConfigSectionMap(Config, section):
 
 
 def printDebugOutput(con, prepend):
-    """standardized debug output generator - prints to stdout
+    """standardized debug output generator - prints tasks to stdout
 
     :param con: the database connection
     :param prepend: a string to be prepended to the debug output
@@ -258,6 +227,98 @@ def printDebugOutput(con, prepend):
         sys.exit("printDebugOutput - An error occurred: {0}".format(e.args[0]))
 
 
+def parseInputTask(line, myproject, con, configfile):
+    """adds a new task to the database
+
+    :param line: the content of the task
+    :param project: the project section of the task
+    :param con: the datbase connection
+    :param configfile: the tpm config file
+    :returns: taskid of the new task in the database
+    """
+
+    cur = con.cursor()
+    sett = settings(configfile)
+    project = myproject
+    done = False
+    repeat = False
+    repeatinterval = '-'
+    duedate = '2999-12-31'
+    duesoon = False
+    overdue = False
+    maybe = False
+
+    if '@done' in line:
+        done = True
+    if '@maybe' in line:
+        maybe = True
+    if '@repeat' in line:
+        repeat = True
+        repeatinterval = re.search(r'\@repeat\((.*?)\)', line).group(1)
+    if '@due' in line:
+        duedate = re.search(r'\@due\((.*?)\)', line).group(1)
+        duealert = datetime.datetime.date(dateutil.parser.parse(duedate)) \
+            - datetime.timedelta(**{sett.duedelta: sett.dueinterval})
+        if duealert <= TODAY \
+                <= datetime.datetime.date(dateutil.parser.parse(duedate)):
+            duesoon = True
+        if datetime.datetime.date(dateutil.parser.parse(duedate)) < TODAY:
+            overdue = True
+
+    if '@prio' not in line or '@start' not in line:
+        project = 'Error'
+    if '@prio' in line:
+        priotag = re.search(r'\@prio\((.*?)\)', line).group(1)
+        if priotag == 'high':
+            priotag = 1
+        elif priotag == 'medium':
+            priotag = 2
+        elif priotag == 'low':
+            priotag = 3
+    else:
+        priotag = None
+    if '@start' in line:
+        starttag = re.search(r'\@start\((.*?)\)', line).group(1)
+    else:
+        starttag = None
+    if '@repeat' in line:
+        if '@prio' not in line or '@start' not in line or '@repeat' not in line or not\
+                    (('@work' not in line and '@home' in line) or (('@work' in line and
+                    '@home' not in line))):
+            project = 'Error'
+    # remove muiple spaces, not the leading tabs
+    #line = ' '.join(line.split('\s'))
+    line = re.sub(' +', ' ', line)
+    try:
+        cur.execute("insert into tasks (prio, startdate, project, taskline, done,\
+            repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (priotag, starttag, project, line.strip('\n'), done, repeat,
+            repeatinterval, duedate, duesoon, overdue, maybe))
+    except sqlite3.Error as e:
+        sys.exit("parseInputTask - An error occurred: {0}".format(e.args[0]))
+    con.commit()
+    return cur.lastrowid
+
+
+def parseInputNote(line, taskid, con):
+    """adds a new note to the database; this note requires a valid parent (task)
+
+    :param line: the note field
+    :param taskid: the primary key of the parent task
+    :param con: the database connections
+    """
+    # ! todo: entfernen des CRLF am Ende der zeile
+
+    cur = con.cursor()
+    try:
+        cur.execute("insert into notes (taskid, noteline) values\
+            (?, ?)", (taskid, line.strip('\n')))
+        con.commit()
+    except sqlite3.Error as e:
+        sys.exit("parseInputNote - An error occurred: {0}".format(e.args[0]))
+
+
 def parseInput(tpfile, con, configfile):
     """parses the taskpaper file and populates the database with the content
 
@@ -266,77 +327,31 @@ def parseInput(tpfile, con, configfile):
     :param configfile: the config file for tpm
     """
 
-    sett = settings(configfile)
     try:
-        cur = con.cursor()
         with open(tpfile, 'rb') as f:
             tplines = f.readlines()
-        errlist = []
         project = ''
+        taskid = ''
 
         for line in tplines:
             line = line.decode("utf-8")
-            try:
-                done = False
-                repeat = False
-                repeatinterval = '-'
-                duedate = '2999-12-31'
-                duesoon = False
-                overdue = False
-                maybe = False
-
-                if not line.strip():
+            if not line.strip():
+                continue
+            if line.strip() == '-':
+                continue
+            if ':\n' in line:
+                # Project
+                project = line.strip()[:-1]
+                continue
+            elif re.match("\t*-.*", line):
+                # is Task
+                taskid = parseInputTask(line, project, con, configfile)
+            else:
+                # is Note
+                if taskid == '':
+                    # we currently only support notes which are associated to tasks
                     continue
-                if line.strip() == '-':
-                    continue
-                if ':\n' in line:
-                    project = line.strip()[:-1]
-                    continue
-                if '@done' in line:
-                    done = True
-                if '@maybe' in line:
-                    maybe = True
-                if '@repeat' in line:
-                    repeat = True
-                    repeatinterval = re.search(r'\@repeat\((.*?)\)', line).group(1)
-                if '@due' in line:
-                    duedate = re.search(r'\@due\((.*?)\)', line).group(1)
-                    duealert = datetime.datetime.date(dateutil.parser.parse(duedate)) \
-                        - datetime.timedelta(**{sett.duedelta: sett.dueinterval})
-                    if duealert <= TODAY \
-                            <= datetime.datetime.date(dateutil.parser.parse(duedate)):
-                        duesoon = True
-                    if datetime.datetime.date(dateutil.parser.parse(duedate)) < TODAY:
-                        overdue = True
-                if '@start' in line and '@prio' in line:
-                    priotag = re.search(r'\@prio\((.*?)\)', line).group(1)
-                    if priotag == 'high':
-                        priotag = 1
-                    elif priotag == 'medium':
-                        priotag = 2
-                    elif priotag == 'low':
-                        priotag = 3
-                    starttag = re.search(r'\@start\((.*?)\)', line).group(1)
-                    try:
-                        cur.execute("insert into tasks (prio, startdate, project, taskline, done,\
-                            repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-                            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                            ( priotag, starttag, project, line.strip(), done, repeat,
-                            repeatinterval, duedate, duesoon, overdue, maybe))
-                    except sqlite3.Error as e:
-                        sys.exit("parseInput - An error occurred: {0}".format(e.args[0]))
-                else:
-                    try:
-                        cur.execute("insert into tasks (prio, startdate, project, taskline, done,\
-                            repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-                            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                            (None, None, project, line.strip(), done, repeat,
-                            repeatinterval, duedate, duesoon, overdue, maybe))
-                    except sqlite3.Error as e:
-                        sys.exit("parseInput - An error occurred: {0}".format(e.args[0]))
-                con.commit()
-            except Exception as e:
-                errlist.append((line, e))
+                parseInputNote(line, taskid, con)
         f.close()
     except Exception as exc:
         sys.exit("parsing input file to db failed; {0}".format(exc))
@@ -394,7 +409,6 @@ def archiveDone(con):
         curup = con.cursor()
         cursel.execute("SELECT taskid, taskline, project FROM tasks where done = 1")
         for row in cursel:
-            #print(row)
             taskstring = removeTaskParts(row[1], '@done')
             newtask = '{0} @project({1}) @done({2})'.format(taskstring, row[2], DAYBEFORE)
             curup.execute("UPDATE tasks SET taskline=?, project=? WHERE taskid=?",
@@ -421,6 +435,29 @@ def archiveMaybe(con):
         con.commit()
     except sqlite3.Error as e:
         sys.exit("archiveMaybe - An error occurred: {0}".format(e.args[0]))
+
+
+def setNoteTag(con):
+    """set a note tag if task has one or more notes associated
+
+    :param con: the database connection"""
+
+    try:
+        cursel = con.cursor()
+        cursel2 = con.cursor()
+        curup = con.cursor()
+        cursel.execute("SELECT taskid, taskline FROM tasks")
+        for row in cursel:
+            cursel2.execute("SELECT count(*) FROM notes where taskid=?", (row[0],))
+            mycount = cursel2.fetchone()[0]
+            if mycount != 0:
+                if '@note' not in row[1]:
+                    taskstring = '{0} {1}'.format(row[1], '@note')
+                    curup.execute("UPDATE tasks SET taskline=? WHERE taskid=?",
+                                 (taskstring, row[0]))
+        con.commit()
+    except sqlite3.Error as e:
+        sys.exit("setNoteTag - An error occurred: {0}".format(e.args[0]))
 
 
 def setRepeat(con):
@@ -491,53 +528,51 @@ def setRepeat(con):
         sys.exit("setRepeat - An error occurred: {0}".format(e.args[0]))
 
 
+def printGroup(con, destination):
+    """helper function for printDebug - does the actual debug printing
+
+    :param con: the database communication
+    :param destination: what project ('home', 'work' ...) to print
+    :returns: result as text string
+    """
+
+    mytxt = ''
+    cursel = con.cursor()
+    cursel2 = con.cursor()
+    try:
+        cursel.execute("SELECT taskline, project, prio, startdate, taskid FROM tasks\
+            where project = ? ORDER BY prio asc, startdate desc", (destination,))
+        for row in cursel:
+            mytxt = '{0}{1}\n'.format(mytxt, row[0])
+            cursel2.execute("SELECT noteline FROM notes where taskid=?", (row[4],))
+            for rownote in cursel2:
+                mytxt = '{0}{1}\n'.format(mytxt, rownote[0])
+    except sqlite3.Error as e:
+        sys.exit("printDebugGroup - An error occurred: {0}".format(e.args[0]))
+    mytxt = mytxt.encode("utf-8")
+    return mytxt
+
+
 def printDebug(con):
-    """writes tasks to stdout; used if debug=True instead of actually writing to output file
+    """writes tasks and notes to stdout; used if debug=True instead of actually writing to output file
 
     :param con: the database connection
     """
 
-    try:
-        print('work:')
-        cursel = con.cursor()
-        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
-            where project = 'work' ORDER BY prio asc, startdate desc ")
-        for row in cursel:
-            print('\t{0}'.format(row[0]).encode("utf-8"))
-        print('\nhome:')
-        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
-            where project = 'home' ORDER BY prio asc, startdate desc ")
-        for row in cursel:
-            print('\t{0}'.format(row[0]).encode("utf-8"))
-        print('\nRepeat:')
-        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
-            where project = 'Repeat' ORDER BY prio asc, startdate desc ")
-        for row in cursel:
-            print('\t{0}'.format(row[0]).encode("utf-8"))
-        print('\nArchive:')
-        print('\nINBOX:')
-        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
-            where project = 'INBOX' ORDER BY prio asc, startdate desc ")
-        for row in cursel:
-            print('\t{0}'.format(row[0]).encode("utf-8"))
-        print('\nArchive:')
-        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
-            where project = 'Archive' ORDER BY prio asc, startdate desc ")
-        for row in cursel:
-            print('\t{0}'.format(row[0]).encode("utf-8"))
-        print('\nError:')
-        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
-            where project = 'Error' ORDER BY prio asc, startdate desc ")
-        for row in cursel:
-            print('\t{0}'.format(row[0]).encode("utf-8"))
-        print('\nMaybe:')
-        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
-            where project = 'Maybe' ORDER BY prio asc, startdate desc ")
-        for row in cursel:
-            print('\t{0}'.format(row[0]).encode("utf-8"))
-        con.commit()
-    except sqlite3.Error as e:
-        sys.exit("printDebug - An error occurred: {0}".format(e.args[0]))
+    print('work:')
+    print(printGroup(con, 'work'))
+    print('\nhome:')
+    print(printGroup(con, 'home'))
+    print('\nRepeat:')
+    print(printGroup(con, 'Repeat'))
+    print('\nINBOX:')
+    print(printGroup(con, 'INBOX'))
+    print('\nArchive:')
+    print(printGroup(con, 'Archive'))
+    print('\nError:')
+    print(printGroup(con, 'Error'))
+    print('\nMaybe:')
+    print(printGroup(con, 'Maybe'))
 
 
 def createOutFile(con):
@@ -547,47 +582,24 @@ def createOutFile(con):
     :returns: the text for the new taskpaper file, archive file and maybe file
     """
 
-    try:
-        mytxt = ''
-        mytxt = 'work:\n'
-        cursel = con.cursor()
-        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
-            where project = 'work' ORDER BY prio asc, startdate desc ")
-        for row in cursel:
-            mytxt = '{0}\t{1}\n'.format(mytxt, row[0])
-        mytxt = '{0}\nhome:\n'.format(mytxt)
-        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
-            where project = 'home' ORDER BY prio asc, startdate desc ")
-        for row in cursel:
-            mytxt = '{0}\t{1}\n'.format(mytxt, row[0])
-        mytxt = '{0}\nRepeat:\n'.format(mytxt)
-        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
-            where project = 'Repeat' ORDER BY prio asc, startdate desc ")
-        for row in cursel:
-            mytxt = '{0}\t{1}\n'.format(mytxt, row[0])
-        mytxt = '{0}\nError:\n'.format(mytxt)
-        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
-            where project = 'Error' ORDER BY prio asc, startdate desc ")
-        for row in cursel:
-            mytxt = '{0}\t{1}\n'.format(mytxt, row[0])
-        mytxt = '{0}\nINBOX:\n'.format(mytxt)
-        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
-            where project = 'INBOX' ORDER BY prio asc, startdate desc ")
-        for row in cursel:
-            mytxt = '{0}\t{1}\n'.format(mytxt, row[0])
-        mytxtdone = ''
-        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
-            where project = 'Archive' ORDER BY prio asc, startdate desc ")
-        for row in cursel:
-            mytxtdone = '{0}\t{1}\n'.format(mytxtdone, row[0])
-        mytxtmaybe = ''
-        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
-            where project = 'Maybe' ORDER BY prio asc, startdate desc ")
-        for row in cursel:
-            mytxtmaybe = '{0}\t{1}\n'.format(mytxtmaybe, row[0])
-        con.commit()
-    except sqlite3.Error as e:
-        sys.exit("createOutFile - An error occurred: {0}".format(e.args[0]))
+    mytxt = ''
+    mytxt = 'work:\n'
+    mytxt = mytxt + printGroup(con, 'work')
+    mytxt = '{0}\nhome:\n'.format(mytxt)
+    mytxt = mytxt + printGroup(con, 'home')
+    mytxt = '{0}\nRepeat:\n'.format(mytxt)
+    mytxt = mytxt + printGroup(con, 'Repeat')
+    mytxt = '{0}\nError:\n'.format(mytxt)
+    mytxt = mytxt + printGroup(con, 'Error')
+    mytxt = '{0}\nINBOX:\n'.format(mytxt)
+    mytxt = mytxt + printGroup(con, 'INBOX')
+
+    mytxtdone = ''
+    mytxtdone = mytxtdone + printGroup(con, 'Archive')
+
+    mytxtmaybe = ''
+    mytxtdone = mytxtdone + printGroup(con, 'Maybe')
+
     return (mytxt, mytxtdone, mytxtmaybe)
 
 
@@ -776,13 +788,6 @@ def createMail(con, destination, configfile):
                 mytxtasc = '{0}{1}\n'.format(mytxtasc, taskstring.strip())
             mytxt = '{0}</table></body></html>'.format(mytxt)
 
-            # if destination == 'home':
-            #     sendMail(mytxt, 'Taskpaper daily overview', source, desthome, 'html', False, configfile)
-            # elif destination == 'work':
-            #     sendMail(mytxtasc, 'Taskpaper daily overview', source, destwork, 'text', True, configfile)
-            # else:
-            #     raise "wrong destination"
-
         except Exception as exc:
             sys.exit("creating email failed; {0}".format(exc))
         return (mytxt, mytxtasc)
@@ -868,8 +873,8 @@ def main():
         setTags(mycon)
         archiveDone(mycon)
         archiveMaybe(mycon)
+        setNoteTag(mycon)
         setRepeat(mycon)
-        sanitizer(mycon)
         if sett.debug:
             printDebug(mycon)
         else:
