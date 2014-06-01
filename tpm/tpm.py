@@ -43,9 +43,9 @@ import urllib
 import smtplib
 import gnupg
 import sqlite3
+import cStringIO
 
 from six.moves import configparser
-from six.moves import cStringIO
 
 
 TODAY = datetime.datetime.date(datetime.datetime.now())
