@@ -26,8 +26,6 @@ License: GPL v3 (for details see LICENSE file)
 **maybe**: boolean; true if task should be moved to maybe list
 """
 
-# ! todo: maybe liefert nur eine zeile, müssten mehere sein
-# ! todo: reviews liegen bei tests an falscher Stelle - prüfen - evtl. direkt in config mit aufnehmen?
 
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
@@ -35,7 +33,8 @@ import dateutil.relativedelta
 import email.mime.text
 import dateutil.parser
 import datetime
-import markdown2
+import jinja2
+import markdown
 import xhtml2pdf.pisa as pisa
 import getopt
 import shutil
@@ -614,21 +613,31 @@ def createTaskListMaybe(filename):
 
     with open(filename, 'rb') as f:
         lines = f.readlines()
-    mytxthome = '## Maybe list:\n'
-    mytxtwork = '## Maybe list:\n'
+    mytxthome = ''
+    mytxtwork = ''
     for line in lines:
+        line = line.decode("utf-8")
         if '@project(home)' in line:
-            mytxthome = '{0}\n{1}'.format(mytxthome, line)
-        elif 'project(work' in line:
-            mytxtwork = '{0}\n{1}'.format(mytxtwork, line)
-    mytxthome = '{0}\n'.format(mytxthome)
-    mytxtwork = '{0}\n'.format(mytxtwork)
+            taskstring = removeTaskParts(line.strip('\n'), '@start @prio @project @customer @waiting')
+            mytxthome = '{0}\n{1}'.format(mytxthome, taskstring)
+        elif 'project(work)' in line:
+            taskstring = removeTaskParts(line.strip('\n'), '@start @prio @project @customer @waiting')
+            mytxtwork = '{0}\n{1}'.format(mytxtwork, taskstring)
     f.close()
+    if mytxthome != '':
+        mytxthome = '{0}\n\n{1}\n'.format('## Maybe list:', mytxthome)
+    else:
+        mytxthome = ''
+    if mytxtwork != '':
+        mytxtwork = '{0}\n\n{1}\n'.format('## Maybe list:', mytxtwork)
+    else:
+        mytxtwork = ''
+
     return (mytxthome, mytxtwork)
 
 
-def createTaskListHighOverdue(con, destination):
-    """prepares a list of tasks with @overdue or @prio(high)
+def createTaskListHigh(con, destination):
+    """prepares a list of tasks with @prio(high)
 
     :param con: the database connection
     :param destination: run for 'work' or 'home' tasks?
@@ -636,37 +645,88 @@ def createTaskListHighOverdue(con, destination):
     """
 
     try:
-        mytxt = '## Open tasks with prio high:\n'
+        mytxt = ''
         cursel = con.cursor()
         cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
             where project = ? and prio = 1 and \
             startdate <= date( julianday(date('now'))) and done = 0 ORDER BY prio asc,\
             startdate desc ", (destination,))
         for row in cursel:
-            taskstring = removeTaskParts(row[0], '@start')
-            mytxt = '{0}{1}\n'.format(mytxt, taskstring.strip())
-        mytxt = '{0}\n## Open tasks - overdue:\n'.format(mytxt)
+            taskstring = removeTaskParts(row[0], '@start @prio')
+            mytxt = '{0}{1}\n'.format(mytxt, taskstring)
+        if mytxt == '':
+            return mytxt
+        else:
+            return '{0}{1}'.format('## Open tasks with prio high:\n', mytxt)
+    except sqlite3.Error as e:
+        sys.exit("createTaskListHigh - An error occurred: {0}".format(e.args[0]))
+
+
+def createTaskListOverdue(con, destination):
+    """prepares a list of tasks with @overdue
+
+    :param con: the database connection
+    :param destination: run for 'work' or 'home' tasks?
+    :returns: the result tasks as text string
+    """
+
+    try:
+        mytxt = ''
+        cursel = con.cursor()
         cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
             where project = ? and overdue = 1 and \
             done = 0 ORDER BY prio asc, startdate desc ", (destination,))
         for row in cursel:
-            taskstring = removeTaskParts(row[0], '@start')
-            mytxt = '{0}{1}\n'.format(mytxt, taskstring.strip())
-        con.commit()
+            taskstring = removeTaskParts(row[0], '@start @prio')
+            mytxt = '{0}{1}\n'.format(mytxt, taskstring)
+        if mytxt == '':
+            return mytxt
+        else:
+            return '{0}{1}'.format('## Open tasks - overdue:\n', mytxt)
     except sqlite3.Error as e:
-        sys.exit("createTaskListHighOverdue - An error occurred: {0}".format(e.args[0]))
-    return mytxt
+        sys.exit("createTaskListOverdue - An error occurred: {0}".format(e.args[0]))
 
 
-def markdown2html(text):
+def markdown2html(mytext):
     """convert markdown text to html output
 
     :param text: input text
     :returns: the html output
     """
 
-    text = text.encode("utf-8")
-    return markdown2.markdown(text)
+    TEMPLATE = """<!DOCTYPE html>
+    <html>
+    <head>
+        <link href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.0/css/bootstrap-combined.min.css" rel="stylesheet">
+        <style>
+            body {
+                font-family: sans-serif;
+            }
+            code, pre {
+                font-family: monospace;
+            }
+            h1 code,
+            h2 code,
+            h3 code,
+            h4 code,
+            h5 code,
+            h6 code {
+                font-size: inherit;
+            }
+        </style>
+    </head>
+    <body>
+    <div class="container">
+    {{content}}
+    </div>
+    </body>
+    </html>
+    """
+
+    extensions = ['extra', 'smartypants']
+    html = markdown.markdown(mytext, extensions=extensions, output_format='html5')
+    doc = jinja2.Template(TEMPLATE).render(content=html)
+    return doc
 
 
 def html2pdf(html, outfile):
@@ -846,7 +906,7 @@ def createTaskList(con, element, headline, mylist, group):
     """create a list of tasks for specified content
 
     :param con: the database connection
-    :param element: the tag to user
+    :param element: the tag to use
     :param headline: the headline to use for the output
     :param mylist: a list of unique names
     :param group: search in which group ('work' or 'home')
@@ -863,7 +923,8 @@ def createTaskList(con, element, headline, mylist, group):
             for row in cursel:
                 if '@{0}'.format(element) in row[0]:
                     if re.search(r'\@' + element + '\((.*?)\)', row[0]).group(1) == listelement:
-                        mytasks = '{0}\n{1}'.format(mytasks, row[0])
+                        taskstring = removeTaskParts(row[0], '@start @prio @project @customer @waiting')
+                        mytasks = '{0}\n{1}'.format(mytasks, taskstring)
         except sqlite3.Error as e:
             sys.exit("createTaskList - An error occurred: {0}".format(e.args[0]))
     return mytasks
@@ -921,13 +982,15 @@ def main():
                          destwork, 'text', True, configfile)
         if sett.pushover:
             if sett.pushoverhome:
-                pushovertxt = createTaskListHighOverdue(mycon, 'home')
+                pushovertxt = createTaskListHigh(mycon, 'home')
+                pushovertxt = '{0}\n{1}'.format(pushovertxt, createTaskListOverdue(mycon, 'home'))
                 # pushover limits messages sizes to 512 characters
                 if len(pushovertxt) > 512:
                         pushovertxt = pushovertxt[:512]
                 sendPushover(pushovertxt, configfile)
             if sett.pushoverwork:
-                pushovertxt = createTaskListHighOverdue(mycon, 'work')
+                pushovertxt = createTaskListHigh(mycon, 'work')
+                pushovertxt = '{0}\n{1}'.format(pushovertxt, createTaskListOverdue(mycon, 'work'))
                 # pushover limits messages sizes to 512 characters
                 if len(pushovertxt) > 512:
                         pushovertxt = pushovertxt[:512]
@@ -941,25 +1004,30 @@ def main():
         for group in reviewgroup:
             reviewfile = '{0}/Review_{1}_{2}'.format(sett.reviewpath, group, TODAY)
             reviewtext = '# Review\n\n'
-            reviewtext = '{0}\n{1}'.format(reviewtext, createTaskListHighOverdue(mycon, group))
+            reviewtext = '{0}\n{1}'.format(reviewtext, createTaskListHigh(mycon, group))
+            reviewtext = '{0}\n{1}'.format(reviewtext, createTaskListOverdue(mycon, group))
             if sett.reviewagenda:
                 agendalist = createUniqueList(mycon, 'agenda', group)
-                agendatasks = createTaskList(mycon, 'agenda', 'Agenda', agendalist, group)
-                reviewtext = '{0}\n{1}'.format(reviewtext, agendatasks)
+                if len(agendalist) > 0:
+                    agendatasks = createTaskList(mycon, 'agenda', 'Agenda', agendalist, group)
+                    reviewtext = '{0}\n{1}'.format(reviewtext, agendatasks)
             if sett.reviewwaiting:
                 waitinglist = createUniqueList(mycon, 'waiting', group)
-                waitingtasks = createTaskList(mycon, 'waiting',
+                if len(waitinglist) > 0:
+                    waitingtasks = createTaskList(mycon, 'waiting',
                                               'Waiting For', waitinglist, group)
-                reviewtext = '{0}\n{1}'.format(reviewtext, waitingtasks)
+                    reviewtext = '{0}\n{1}'.format(reviewtext, waitingtasks)
             if sett.reviewcustomers:
                 customerlist = createUniqueList(mycon, 'customer', group)
-                customertasks = createTaskList(mycon, 'customer',
+                if len(customerlist) > 0:
+                    customertasks = createTaskList(mycon, 'customer',
                                                'Customers', customerlist, group)
-                reviewtext = '{0}\n{1}'.format(reviewtext, customertasks)
+                    reviewtext = '{0}\n{1}'.format(reviewtext, customertasks)
             if sett.reviewprojects:
                 projectlist = createUniqueList(mycon, 'project', group)
-                projecttasks = createTaskList(mycon, 'project', 'Projects', projectlist, group)
-                reviewtext = '{0}\n{1}'.format(reviewtext, projecttasks)
+                if len(projectlist) > 0:
+                    projecttasks = createTaskList(mycon, 'project', 'Projects', projectlist, group)
+                    reviewtext = '{0}\n{1}'.format(reviewtext, projecttasks)
             if sett.reviewmaybe:
                 maybetxt = ''
                 (maybehometxt, maybeworktxt) = createTaskListMaybe('{0}maybe.txt'.format(inputfile[:-8]))

@@ -1,4 +1,5 @@
 Jinja2==2.7.2
+Markdown==2.4.1
 MarkupSafe==0.23
 Pillow==2.4.0
 PyPDF2==1.21
@@ -7,8 +8,10 @@ Sphinx==1.2.2
 cov-core==1.12
 coverage==3.7.1
 docutils==0.11
+guess-language-spirit==0.5a5
 html5lib==0.999
-markdown2==2.2.1
+mdx-smartypants==1.5.1
+namedentities==1.5.2
 pkginfo==1.1
 py==1.4.20
 pysqlite==2.6.3
