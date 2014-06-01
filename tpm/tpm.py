@@ -26,6 +26,9 @@ License: GPL v3 (for details see LICENSE file)
 **maybe**: boolean; true if task should be moved to maybe list
 """
 
+# ! todo: maybe liefert nur eine zeile, müssten mehere sein
+# ! todo: reviews liegen bei tests an falscher Stelle - prüfen - evtl. direkt in config mit aufnehmen?
+
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import dateutil.relativedelta
@@ -43,9 +46,10 @@ import urllib
 import smtplib
 import gnupg
 import sqlite3
+import cStringIO
 
 from six.moves import configparser
-from six.moves import cStringIO
+#from six.moves import cStringIO
 
 
 TODAY = datetime.datetime.date(datetime.datetime.now())
@@ -177,6 +181,7 @@ class settings:
         self.reviewprojects = Config.getboolean('review', 'reviewprojects')
         self.reviewcustomers = Config.getboolean('review', 'reviewcustomers')
         self.reviewwaiting = Config.getboolean('review', 'reviewwaiting')
+        self.reviewmaybe = Config.getboolean('review', 'reviewmaybe')
         self.reviewoutputpdf = Config.getboolean('review', 'outputpdf')
         self.reviewoutputhtml = Config.getboolean('review', 'outputhtml')
         self.reviewoutputmd = Config.getboolean('review', 'outputmd')
@@ -599,6 +604,29 @@ def createOutFile(con):
     return (mytxt, mytxtdone, mytxtmaybe)
 
 
+def createTaskListMaybe(filename):
+    """parses maybe file and generates content as text string
+
+    :param filename: the filename of the maybe file
+    :param destination: run for 'work' or 'home' tasks?
+    :returns: two text string with content of maybe file (home/work)
+    """
+
+    with open(filename, 'rb') as f:
+        lines = f.readlines()
+    mytxthome = '## Maybe list:\n'
+    mytxtwork = '## Maybe list:\n'
+    for line in lines:
+        if '@project(home)' in line:
+            mytxthome = '{0}\n{1}'.format(mytxthome, line)
+        elif 'project(work' in line:
+            mytxtwork = '{0}\n{1}'.format(mytxtwork, line)
+    mytxthome = '{0}\n'.format(mytxthome)
+    mytxtwork = '{0}\n'.format(mytxtwork)
+    f.close()
+    return (mytxthome, mytxtwork)
+
+
 def createTaskListHighOverdue(con, destination):
     """prepares a list of tasks with @overdue or @prio(high)
 
@@ -932,6 +960,14 @@ def main():
                 projectlist = createUniqueList(mycon, 'project', group)
                 projecttasks = createTaskList(mycon, 'project', 'Projects', projectlist, group)
                 reviewtext = '{0}\n{1}'.format(reviewtext, projecttasks)
+            if sett.reviewmaybe:
+                maybetxt = ''
+                (maybehometxt, maybeworktxt) = createTaskListMaybe('{0}maybe.txt'.format(inputfile[:-8]))
+                if group == 'home':
+                    maybetxt = maybehometxt
+                elif group == 'work':
+                    maybetxt = maybeworktxt
+                reviewtext = '{0}\n{1}'.format(reviewtext, maybetxt)
 
             html = markdown2html(reviewtext)
 

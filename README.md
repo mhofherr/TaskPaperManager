@@ -105,6 +105,7 @@ The variable parameters are configured via a separate config file (tpm.cfg):
     reviewprojects: True
     reviewcustomers: True
     reviewwaiting: True
+    reviewmaybe: True
 
 ### Parameter Explanations
 
@@ -139,6 +140,7 @@ The variable parameters are configured via a separate config file (tpm.cfg):
 * **reviewprojects**: Include an overview for @project?
 * **reviewcustomers**:  Include an overview for @customer?
 * **reviewwaiting**: Include an overview for @waiting?
+* **reviewmaybe**: Include maybe list in review?
 
 ## Supported tags
 The following tags are actively used in TPM:
