@@ -26,8 +26,12 @@ Follow these steps for installation:
 
 * copy `tpm.py` to a script directory on your machine
 * create a config file (content see below)
-* copy the file `requirements.txt`
-* `pip install -r requirements.txt`
+* for Python 2.7:
+    * copy the file `requirements.txt`
+    * `pip install -r requirements.txt`
+* for Python 3.4:
+    - copy the file `requirements_python3.txt`
+    - `pip install -r requirements_python3.txt`
 * test the script on a copy of your task file
 * if it works:
     *  add a cron job for regular execution
@@ -51,11 +55,10 @@ TaskPaperParser support two modes of execution:
 
 ## Python versions
 
-TPM is developed on Python 2.7. Support for Python 3.4 is in the queue.
+TPM is developed on Python 2.7. It is tested on python 3.4 as well.
 
 ## Future features
 
-* Full support for Python 3.4
 * support pgp/mime for sending encrypted emails (to support encrypted html emails)
 * provide a pypi package
 
@@ -155,7 +158,7 @@ The following tags are actively used in TPM:
 * @waiting(): waiting for a specific person to complete the task
 * @agenda(): task to discuss with a specific person
 * @repeat(): repeating task; a special group of tasks which will be instantiated as new tasks after a certain interval (see details below)
-* @home: only used in @repeat tasks; will instantiate the new task in the *home* section  
+* @home: only used in @repeat tasks; will instantiate the new task in the *home* section
 * @work: only used in @repeat tasks; will instantiate the new task in the *work* section
 * @note: show that the task has notes added (additional lines); necessary since TaskPaper does not show notes when filtering for tags
 
@@ -167,14 +170,14 @@ TPM performs some base checks regarding the validity of tags. The rules are:
 * tasks in 'work' and 'home': at least require '@prio' and 'start'
 * tasks in 'Repeat': at least require '@prio', '@start', '@repeat' and either '@work' or '@home'
 
-If a task does not fulfill these requirements it is sorted in project 'Error' 
+If a task does not fulfill these requirements it is sorted in project 'Error'
 
 ## Repeating tasks
 Tasks which will be instantiated at regular intervals are marked with the tag "@repeat()". The value within the parentheses of the @repeat-tag determine the interval. The first value is a number, the second determines the unit (where "d"=day, "w"=week and "m"=month). So, **@repeat(2w)** will instantiate a new task with the same name every 2 weeks, starting from the @start-date. The original @repeat-task will stay in place, only a new @start-date will be set.
-All repeat-tasks must be in a dedicated taskpaper group called "Repeat:". 
+All repeat-tasks must be in a dedicated taskpaper group called "Repeat:".
 
 ## Projects
-TaskPaper treats all lines ending with a colon (:) as projects. I use these TaskPaper "projects" only as main sections in my TaskPaper file. My actual projects are grouped by the tag *@project()*. See "The TaskPaper file" below for an overview about required sections in the TaskPaper file. 
+TaskPaper treats all lines ending with a colon (:) as projects. I use these TaskPaper "projects" only as main sections in my TaskPaper file. My actual projects are grouped by the tag *@project()*. See "The TaskPaper file" below for an overview about required sections in the TaskPaper file.
 
 ## The TaskPaper file
 TPM requires all tasks in one task file, formated in TaskPaper syntax. A TaskPaper file sample for TPM looks as follows:
@@ -221,6 +224,13 @@ Adding tags by hand can be quite tedious, so KeyboardMaestro comes to the rescue
 Do you  have questions or comments about `TaskPaperManager`? Contact me via [taskpaper@mhofherr.de](mailto:taskpaper@mhofherr.de) or [twitter](https://twitter.com/MatthiasHofherr).
 
 ## Changelog
+
+### Version 1.3.0
+
+* Support for Python 3.4
+* switched from xhtml2pdf to weasyprint for PDF generation
+* use jinja2 template for html generation
+* some smaller bugfixes
 
 ### Version 1.2.0
 

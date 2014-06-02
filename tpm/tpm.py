@@ -35,21 +35,19 @@ import dateutil.parser
 import datetime
 import jinja2
 import markdown
-import xhtml2pdf.pisa as pisa
+import logging
 import getopt
 import shutil
 import sys
 import re
-import httplib
 import urllib
 import smtplib
 import gnupg
 import sqlite3
-import cStringIO
+import weasyprint
 
 from six.moves import configparser
-#from six.moves import cStringIO
-
+from six.moves import http_client
 
 TODAY = datetime.datetime.date(datetime.datetime.now())
 DAYBEFORE = TODAY - datetime.timedelta(days=1)
@@ -553,7 +551,6 @@ def printGroup(con, destination):
                 mytxt = '{0}{1}\n'.format(mytxt, rownote[0])
     except sqlite3.Error as e:
         sys.exit("printDebugGroup - An error occurred: {0}".format(e.args[0]))
-    #mytxt = mytxt.encode("utf-8")
     return mytxt
 
 
@@ -563,21 +560,22 @@ def printDebug(con):
     :param con: the database connection
     """
 
-    print('work:')
-    print(printGroup(con, 'work'))
-    print('\nhome:')
-    print(printGroup(con, 'home'))
-    print('\nRepeat:')
-    print(printGroup(con, 'Repeat'))
-    print('\nINBOX:')
-    print(printGroup(con, 'INBOX'))
-    print('\nArchive:')
-    print(printGroup(con, 'Archive'))
-    print('\nError:')
-    print(printGroup(con, 'Error'))
-    print('\nMaybe:')
-    print(printGroup(con, 'Maybe'))
-
+    mytxt = 'work:\n'
+    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'work'))
+    mytxt = '{0}\nhome:\n'.format(mytxt)
+    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'home'))
+    mytxt = '{0}\nRepeat:\n'.format(mytxt)
+    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'Repeat'))
+    mytxt = '{0}\nINBOX:\n'.format(mytxt)
+    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'INBOX'))
+    mytxt = '{0}\nArchive:\n'.format(mytxt)
+    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'Archive'))
+    mytxt = '{0}\nError:\n'.format(mytxt)
+    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'Error'))
+    mytxt = '{0}\nMaybe:\n'.format(mytxt)
+    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'Maybe'))
+    mytxt = mytxt.encode("utf-8")
+    print(mytxt)
 
 def createOutFile(con):
     """prepare the text for the different output files
@@ -736,14 +734,11 @@ def html2pdf(html, outfile):
     :param outfile: the output pdf file
     """
 
-    html = html.encode("utf-8")
-    pdf = pisa.CreatePDF(
-        cStringIO.StringIO(html),
-        file(outfile, "wb")
-        )
-    if pdf.err:
-        print("*** {0} ERRORS OCCURED".format(pdf.err))
-        sys.exit()
+    logger = logging.getLogger('weasyprint')
+    logger.handlers = []
+    logger.addHandler(logging.FileHandler('/tmp/weasyprint.log'))
+    mydoc = weasyprint.HTML(string=html)
+    mydoc.write_pdf(target=outfile)
 
 
 def sendPushover(content, configfile):
@@ -756,7 +751,8 @@ def sendPushover(content, configfile):
     sett = settings(configfile)
     content = content.encode("utf-8")
     try:
-        conn = httplib.HTTPSConnection("api.pushover.net:443")
+        #conn = httplib.HTTPSConnection("api.pushover.net:443")
+        conn = http_client.HTTPSConnection("api.pushover.net:443")
         conn.request("POST", "/1/messages.json",
             urllib.urlencode({
                 "token": sett.pushovertoken,
@@ -819,17 +815,13 @@ def createMail(con, destination, configfile):
     :param destination: either 'home' or 'work'
     :param configfile: the tpm config file
     """
-    # ! todo: create html automatically from markdown
 
     sett = settings(configfile)
     if sett.sendmail:
         try:
             cursel = con.cursor()
 
-            mytxt = '<html><head><title>Tasks for Today</title></head><body>'
-            mytxt = '{0}<h1>Tasks for Today</h1><p>'.format(mytxt)
             mytxtasc = '# Tasks for Today\n'
-            mytxt = '{0}<h2>Overdue tasks</h2><p>'.format(mytxt)
             mytxtasc = '{0}\n## Overdue tasks\n'.format(mytxtasc)
 
             # Overdue
@@ -839,10 +831,7 @@ def createMail(con, destination, configfile):
             for row in cursel:
                 taskstring = removeTaskParts(row[0], '@')
                 taskstring = '{0} @due({1})'.format(taskstring, row[4])
-                mytxt = '{0}<FONT COLOR="#ff0033">{1}</FONT><br/>'.format(mytxt,
-                        taskstring.strip())
                 mytxtasc = '{0}{1}\n'.format(mytxtasc, taskstring.strip())
-            mytxt = '{0}<h2>Due soon tasks</h2>'.format(mytxt)
             mytxtasc = '{0}\n## Due soon tasks\n'.format(mytxtasc)
 
             # Due soon
@@ -852,10 +841,8 @@ def createMail(con, destination, configfile):
             for row in cursel:
                 taskstring = removeTaskParts(row[0], '@')
                 taskstring = '{0} @due({1})'.format(taskstring, row[4])
-                mytxt = '{0}{1}<br/>'.format(mytxt, taskstring.strip())
                 mytxtasc = '{0}{1}\n'.format(mytxtasc, taskstring.strip())
 
-            mytxt = '{0}<h2>High priority tasks</h2><p>'.format(mytxt)
             mytxtasc = '{0}\n## High priority tasks ##\n'.format(mytxtasc)
 
             # All other high prio tasks
@@ -867,14 +854,11 @@ def createMail(con, destination, configfile):
                 taskstring = removeTaskParts(row[0], '@start @prio')
                 if row[4] != '2999-12-31':
                     taskstring = '{0} @due({1})'.format(taskstring, row[4])
-                mytxt = '{0}<FONT COLOR="#ff0033">{1}</FONT><br/>'.format(mytxt,
-                        taskstring.strip())
                 mytxtasc = '{0}{1}\n'.format(mytxtasc, taskstring.strip())
-            mytxt = '{0}</table></body></html>'.format(mytxt)
 
         except Exception as exc:
             sys.exit("creating email failed; {0}".format(exc))
-        return (mytxt, mytxtasc)
+        return mytxtasc
 
 
 def createUniqueList(con, element, group):
@@ -941,7 +925,7 @@ def myFile(mytext, filename, mode):
     try:
         mytext = mytext.encode("utf-8")
         outfile = open(filename, mode)
-        outfile.write(b'{0}'.format(mytext))
+        outfile.write(mytext)
         outfile.close()
     except Exception as exc:
         sys.exit("file operation failed; {0}".format(exc))
@@ -973,11 +957,13 @@ def main():
             desthome = sett.desthomeemail
             destwork = sett.destworkemail
             if sett.sendmailhome:
-                (mytxt, mytxtasc) = createMail(mycon, 'home', configfile)
-                sendMail(mytxt, 'Taskpaper daily overview', source,
+                mytxtasc = createMail(mycon, 'home', configfile)
+                myhtml = markdown2html(mytxtasc)
+                # ! todo: add to config for user to choose if 'work' or 'home' shall be encrypted
+                sendMail(myhtml, 'Taskpaper daily overview', source,
                          desthome, 'html', False, configfile)
             if sett.sendmailwork:
-                (mytxt, mytxtasc) = createMail(mycon, 'work', configfile)
+                mytxtasc = createMail(mycon, 'work', configfile)
                 sendMail(mytxtasc, 'Taskpaper daily overview', source,
                          destwork, 'text', True, configfile)
         if sett.pushover:
@@ -1040,9 +1026,9 @@ def main():
             html = markdown2html(reviewtext)
 
             if sett.reviewoutputmd:
-                myFile(reviewtext, '{0}.md'.format(reviewfile), 'w')
+                myFile(reviewtext, '{0}.md'.format(reviewfile), 'wb')
             if sett.reviewoutputhtml:
-                myFile(html, '{0}.html'.format(reviewfile), 'w')
+                myFile(html, '{0}.html'.format(reviewfile), 'wb')
             if sett.reviewoutputpdf:
                 html2pdf(html, '{0}.pdf'.format(reviewfile))
     else:
