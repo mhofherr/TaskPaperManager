@@ -45,15 +45,10 @@ import smtplib
 import gnupg
 import sqlite3
 import cStringIO
-
-from six.moves import configparser
-
-=======
 import weasyprint
 
 from six.moves import configparser
 from six.moves import http_client
->>>>>>> develop
 
 TODAY = datetime.datetime.date(datetime.datetime.now())
 DAYBEFORE = TODAY - datetime.timedelta(days=1)
