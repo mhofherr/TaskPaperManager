@@ -31,8 +31,16 @@ Follow these steps for installation:
 
 -  copy ``tpm.py`` to a script directory on your machine
 -  create a config file (content see below)
--  copy the file ``requirements.txt``
--  ``pip install -r requirements.txt``
+-  for Python 2.7:
+
+   -  copy the file ``requirements.txt``
+   -  ``pip install -r requirements.txt``
+
+-  for Python 3.4:
+
+   -  copy the file ``requirements_python3.txt``
+   -  ``pip install -r requirements_python3.txt``
+
 -  test the script on a copy of your task file
 -  if it works:
 
@@ -63,12 +71,11 @@ TaskPaperParser support two modes of execution:
 Python versions
 ---------------
 
-TPM is developed on Python 2.7. Support for Python 3.4 is in the queue.
+TPM is developed on Python 2.7. It is tested on python 3.4 as well.
 
 Future features
 ---------------
 
--  Full support for Python 3.4
 -  support pgp/mime for sending encrypted emails (to support encrypted
    html emails)
 -  provide a pypi package
@@ -125,6 +132,7 @@ The variable parameters are configured via a separate config file
     reviewprojects: True
     reviewcustomers: True
     reviewwaiting: True
+    reviewmaybe: True
 
 Parameter Explanations
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -168,6 +176,7 @@ Parameter Explanations
 -  **reviewprojects**: Include an overview for @project?
 -  **reviewcustomers**: Include an overview for @customer?
 -  **reviewwaiting**: Include an overview for @waiting?
+-  **reviewmaybe**: Include maybe list in review?
 
 Supported tags
 --------------
@@ -314,6 +323,14 @@ via taskpaper@mhofherr.de or
 
 Changelog
 ---------
+
+Version 1.3.0
+~~~~~~~~~~~~~
+
+-  Support for Python 3.4
+-  switched from xhtml2pdf to weasyprint for PDF generation
+-  use jinja2 template for html generation
+-  some smaller bugfixes
 
 Version 1.2.0
 ~~~~~~~~~~~~~
