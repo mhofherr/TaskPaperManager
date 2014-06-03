@@ -318,6 +318,7 @@ def test_settings():
     mytext = mytext + "reviewprojects: True\n"
     mytext = mytext + "reviewcustomers: True\n"
     mytext = mytext + "reviewwaiting: True\n"
+    mytext = mytext + "reviewmaybe: True\n"
     mytext = mytext + "\n"
 
     tpm.tpm.myFile(mytext, '/tmp/test.cfg', 'w')
@@ -347,6 +348,7 @@ def test_settings():
     assert sett.reviewprojects is True
     assert sett.reviewcustomers is True
     assert sett.reviewwaiting is True
+    assert sett.reviewmaybe is True
     assert sett.reviewoutputpdf is True
     assert sett.reviewoutputhtml is True
     assert sett.reviewoutputmd is True
