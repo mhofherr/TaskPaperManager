@@ -39,7 +39,7 @@ Follow these steps for installation:
 ## Command line
 
 The script requires the following command line:  
-`tpm.py -i <inputfile> -c <configfile> -m <mode:daily|review>`
+`tpm.py -i <inputfile> -c <configfile> -m <daily|review>`
 
 The individual options are:  
 * -i: The full path to your taskpaper file
