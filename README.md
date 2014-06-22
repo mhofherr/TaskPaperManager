@@ -223,6 +223,10 @@ Adding tags by hand can be quite tedious, so KeyboardMaestro comes to the rescue
 
 Do you  have questions or comments about `TaskPaperManager`? Contact me via [taskpaper@mhofherr.de](mailto:taskpaper@mhofherr.de) or [twitter](https://twitter.com/MatthiasHofherr).
 
+## FAQ
+
+* **I am on MAC OS X and get the error "OSError: cannot load library libcairo.so.2: dlopen(libcairo.so.2, 2): image not found"**: Weasyprint requires cairo. You have to install it with your package manager of choice. For homebrew: `brew install cairo`. Rinse and repeat for pango, if not already installed.
+
 ## Changelog
 
 ### Version 1.3.0
