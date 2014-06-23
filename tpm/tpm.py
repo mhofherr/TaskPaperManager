@@ -156,24 +156,46 @@ class settings:
         Config = configparser.ConfigParser()
         Config.read(configfile)
         self.debug = Config.getboolean('tpm', 'debug')
-        self.sendmail = Config.getboolean('mail', 'sendmail')
-        self.sendmailhome = Config.getboolean('mail', 'sendmailhome')
-        self.sendmailwork = Config.getboolean('mail', 'sendmailwork')
-        self.smtpserver = ConfigSectionMap(Config, 'mail')['smtpserver']
-        self.smtpport = Config.getint('mail', 'smtpport')
-        self.smtpuser = ConfigSectionMap(Config, 'mail')['smtpuser']
-        self.smtppassword = ConfigSectionMap(Config, 'mail')['smtppassword']
-        self.pushover = Config.getboolean('pushover', 'pushover')
         self.duedelta = ConfigSectionMap(Config, 'tpm')['duedelta']
         self.dueinterval = Config.getint('tpm', 'dueinterval')
-        self.encryptmail = Config.getboolean('mail', 'encryptmail')
-        self.gnupghome = ConfigSectionMap(Config, 'mail')['gnupghome']
-        self.pushovertoken = ConfigSectionMap(Config, 'pushover')['pushovertoken']
-        self.pushoveruser = ConfigSectionMap(Config, 'pushover')['pushoveruser']
-        self.targetfingerprint = ConfigSectionMap(Config, 'mail')['targetfingerprint']
-        self.sourceemail = ConfigSectionMap(Config, 'mail')['sourceemail']
-        self.desthomeemail = ConfigSectionMap(Config, 'mail')['desthomeemail']
-        self.destworkemail = ConfigSectionMap(Config, 'mail')['destworkemail']
+        self.sendmail = Config.getboolean('mail', 'sendmail')
+        if self.sendmail:
+            self.sendmailhome = Config.getboolean('mail', 'sendmailhome')
+            self.sendmailwork = Config.getboolean('mail', 'sendmailwork')
+            self.smtpserver = ConfigSectionMap(Config, 'mail')['smtpserver']
+            self.smtpport = Config.getint('mail', 'smtpport')
+            self.smtpuser = ConfigSectionMap(Config, 'mail')['smtpuser']
+            self.smtppassword = ConfigSectionMap(Config, 'mail')['smtppassword']
+            self.encryptmail = Config.getboolean('mail', 'encryptmail')
+            self.gnupghome = ConfigSectionMap(Config, 'mail')['gnupghome']
+            self.targetfingerprint = ConfigSectionMap(Config, 'mail')['targetfingerprint']
+            self.sourceemail = ConfigSectionMap(Config, 'mail')['sourceemail']
+            self.desthomeemail = ConfigSectionMap(Config, 'mail')['desthomeemail']
+            self.destworkemail = ConfigSectionMap(Config, 'mail')['destworkemail']
+        else:
+            self.sendmailhome = False
+            self.sendmailwork = False
+            self.smtpserver = ''
+            self.smtpport = 1
+            self.smtpuser = ''
+            self.smtppassword = ''
+            self.encryptmail = False
+            self.gnupghome = ''
+            self.targetfingerprint = ''
+            self.sourceemail = ''
+            self.desthomeemail = ''
+            self.destworkemail = ''
+        self.pushover = Config.getboolean('pushover', 'pushover')
+        if self.pushover:
+            self.pushovertoken = ConfigSectionMap(Config, 'pushover')['pushovertoken']
+            self.pushoveruser = ConfigSectionMap(Config, 'pushover')['pushoveruser']
+            self.pushoverhome = Config.getboolean('pushover', 'pushoverhome')
+            self.pushoverwork = Config.getboolean('pushover', 'pushoverwork')
+        else:
+            self.pushovertoken = ''
+            self.pushoveruser = ''
+            self.pushoverhome = False
+            self.pushoverwork = False
         self.reviewpath = ConfigSectionMap(Config, 'review')['reviewpath']
         self.reviewagenda = Config.getboolean('review', 'reviewagenda')
         self.reviewprojects = Config.getboolean('review', 'reviewprojects')
@@ -185,8 +207,6 @@ class settings:
         self.reviewoutputmd = Config.getboolean('review', 'outputmd')
         self.reviewhome = Config.getboolean('review', 'reviewhome')
         self.reviewwork = Config.getboolean('review', 'reviewwork')
-        self.pushoverhome = Config.getboolean('pushover', 'pushoverhome')
-        self.pushoverwork = Config.getboolean('pushover', 'pushoverwork')
 
 
 def ConfigSectionMap(Config, section):
