@@ -115,7 +115,7 @@ The variable parameters are configured via a separate config file (tpm.cfg):
 * **debug**: When enabling debug mode the script will not modify your tasklist but will print instead debug output. This has no influence on sending email or sending pushover messages.
 * **dueinterval**: all tasks will be tagged as @duesoon when today is x days (or whatever you define for *duedelta*) before the duedate (defined in @due(...))
 * **duedelta**: unit for *dueinterval*; may be `days`, `weeks` or `months` 
-* **sendmail**: Do you want to get a daily overview for your tasks by mail? 
+* **sendmail**: Do you want to get a daily overview for your tasks by mail? If set to ´False`, the other parameters in section [mail] can be empty.
 * **sendmailhome**: For your home tasks?
 * **sendmailwork**: For your works tasks?
 * **smtpserver**: The FQDN of your smtp server 
@@ -128,7 +128,7 @@ The variable parameters are configured via a separate config file (tpm.cfg):
 * **encryptmail**: Do you want to encrypt your email? Requires a working gpg-setup
 * **gnupghome**: The path to your .gnupg directory
 * **targetfingerprint**: the fingerprint for the recipient key
-* **pushover**: Do you want to get a daily overview for your tasks by mail? 
+* **pushover**: Do you want to get a daily overview for your tasks by mail? If set to ´False`, the other parameters in section [mail] can be empty.
 * **pushoverhome**: For your home tasks?
 * **pushoverwork**: For your works tasks?
 * **pushovertoken**: Your application token for pushover
@@ -228,6 +228,10 @@ Do you  have questions or comments about `TaskPaperManager`? Contact me via [tas
 * **I am on MAC OS X and get the error "OSError: cannot load library libcairo.so.2: dlopen(libcairo.so.2, 2): image not found"**: Weasyprint requires cairo. You have to install it with your package manager of choice. For homebrew: `brew install cairo`. Rinse and repeat for pango, if not already installed.
 
 ## Changelog
+
+### Version 1.3.5
+
+* Implemented request #14; if `sendmail` or `pushover` are set to False, the other parameters in the respective config section can be empty
 
 ### Version 1.3.0
 

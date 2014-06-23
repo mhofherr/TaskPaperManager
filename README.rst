@@ -50,7 +50,7 @@ Command line
 ------------
 
 | The script requires the following command line:
-| ``tpm.py -i <inputfile> -c <configfile> -m <mode:daily|review>``
+| ``tpm.py -i <inputfile> -c <configfile> -m <daily|review>``
 
 | The individual options are:
 | \* -i: The full path to your taskpaper file \* -c: The full path to
@@ -146,7 +146,8 @@ Parameter Explanations
 -  **duedelta**: unit for *dueinterval*; may be ``days``, ``weeks`` or
    ``months``
 -  **sendmail**: Do you want to get a daily overview for your tasks by
-   mail?
+   mail? If set to ´False\`, the other parameters in section [mail] can
+   be empty.
 -  **sendmailhome**: For your home tasks?
 -  **sendmailwork**: For your works tasks?
 -  **smtpserver**: The FQDN of your smtp server
@@ -161,7 +162,8 @@ Parameter Explanations
 -  **gnupghome**: The path to your .gnupg directory
 -  **targetfingerprint**: the fingerprint for the recipient key
 -  **pushover**: Do you want to get a daily overview for your tasks by
-   mail?
+   mail? If set to ´False\`, the other parameters in section [mail] can
+   be empty.
 -  **pushoverhome**: For your home tasks?
 -  **pushoverwork**: For your works tasks?
 -  **pushovertoken**: Your application token for pushover
@@ -321,8 +323,24 @@ Do you have questions or comments about ``TaskPaperManager``? Contact me
 via taskpaper@mhofherr.de or
 `twitter <https://twitter.com/MatthiasHofherr>`__.
 
+FAQ
+---
+
+-  **I am on MAC OS X and get the error "OSError: cannot load library
+   libcairo.so.2: dlopen(libcairo.so.2, 2): image not found"**:
+   Weasyprint requires cairo. You have to install it with your package
+   manager of choice. For homebrew: ``brew install cairo``. Rinse and
+   repeat for pango, if not already installed.
+
 Changelog
 ---------
+
+Version 1.3.5
+~~~~~~~~~~~~~
+
+-  Implemented request #14; if ``sendmail`` or ``pushover`` are set to
+   False, the other parameters in the respective config section can be
+   empty
 
 Version 1.3.0
 ~~~~~~~~~~~~~
