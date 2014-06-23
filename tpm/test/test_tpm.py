@@ -286,7 +286,7 @@ def test_settings():
     mytext = mytext + "dueinterval: 3\n"
     mytext = mytext + "\n"
     mytext = mytext + "[mail]\n"
-    mytext = mytext + "sendmail: False\n"
+    mytext = mytext + "sendmail: True\n"
     mytext = mytext + "sendmailhome: True\n"
     mytext = mytext + "sendmailwork:  False\n"
     mytext = mytext + "smtpserver: mail.user.test\n"
@@ -301,7 +301,7 @@ def test_settings():
     mytext = mytext + "targetfingerprint: 1234567890\n"
     mytext = mytext + "\n"
     mytext = mytext + "[pushover]\n"
-    mytext = mytext + "pushover: False\n"
+    mytext = mytext + "pushover: True\n"
     mytext = mytext + "pushoverhome: True\n"
     mytext = mytext + "pushoverwork: False\n"
     mytext = mytext + "pushovertoken: 2345678901\n"
@@ -325,14 +325,14 @@ def test_settings():
     sett = tpm.tpm.settings('/tmp/test.cfg')
 
     assert sett.debug is True
-    assert sett.sendmail is False
+    assert sett.sendmail is True
     assert sett.sendmailhome is True
     assert sett.sendmailwork is False
     assert sett.smtpserver == 'mail.user.test'
     assert sett.smtpport == 587
     assert sett.smtpuser == 'user'
     assert sett.smtppassword == 'password'
-    assert sett.pushover is False
+    assert sett.pushover is True
     assert sett.duedelta == 'days'
     assert sett.dueinterval == 3
     assert sett.encryptmail is True
