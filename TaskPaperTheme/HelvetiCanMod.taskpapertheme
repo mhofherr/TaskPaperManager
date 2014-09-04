@@ -98,6 +98,16 @@
     <characterStyle id="today" fontID="bolder" foregroundColorID="today" />
     <entryRule matchesQuery="(high)" contentCharacterStyleID="today" />
 
+    <!-- @low style -->
+    <color id="low" red="0.75686" green="0.80392" blue="0.75686" alpha="1.0" />
+    <characterStyle id="low" foregroundColorID="low" />
+    <entryRule matchesQuery="(low)" contentCharacterStyleID="low" />
+
+    <!-- @soc style -->
+    <color id="soc" red="0.00000" green="0.00000" blue="0.80000" alpha="1.0" />
+    <characterStyle id="soc" fontID="bolder" foregroundColorID="soc" />
+    <entryRule matchesQuery="@SOC" contentCharacterStyleID="soc" />
+
     <!-- @overdue style -->
     <color id="overdue" red="0.86275" green="0.07843" blue="0.23529" alpha="1.0" />
     <characterStyle id="overdue" fontID="bolder" foregroundColorID="overdue" />
