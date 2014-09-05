@@ -250,6 +250,35 @@ def printDebugOutput(con, prepend):
         sys.exit("printDebugOutput - An error occurred: {0}".format(e.args[0]))
 
 
+def checkSanity(line):
+    """performs some sanity check on task line
+
+    :param line: the content of the task
+    :return: true if check throws no errrors
+    """
+
+    if '@prio' not in line or '@start' not in line:
+        return False
+
+    # check brackets
+    stack = []
+    pushChars, popChars = "<({[", ">)}]"
+    for c in str:
+        if c in pushChars:
+            stack.append(c)
+        elif c in popChars:
+            if not len(stack):
+                return False
+            else:
+                stackTop = stack.pop()
+                balancingBracket = pushChars[popChars.index(c)]
+                if stackTop != balancingBracket:
+                    return False
+        else:
+            return False
+    return not len(stack)
+
+
 def parseInputTask(line, myproject, con, configfile):
     """adds a new task to the database
 
@@ -271,57 +300,67 @@ def parseInputTask(line, myproject, con, configfile):
     overdue = False
     maybe = False
 
-    if '@done' in line:
-        done = True
-    if '@maybe' in line:
-        maybe = True
-    if '@repeat' in line:
-        repeat = True
-        repeatinterval = re.search(r'\@repeat\((.*?)\)', line).group(1)
-    if '@due' in line:
-        duedate = re.search(r'\@due\((.*?)\)', line).group(1)
-        duealert = datetime.datetime.date(dateutil.parser.parse(duedate)) \
-            - datetime.timedelta(**{sett.duedelta: sett.dueinterval})
-        if duealert <= TODAY \
-                <= datetime.datetime.date(dateutil.parser.parse(duedate)):
-            duesoon = True
-        if datetime.datetime.date(dateutil.parser.parse(duedate)) < TODAY:
-            overdue = True
-
-    if '@prio' not in line or '@start' not in line:
+    if checkSanity(line) is False:
+        print('DEBUG: Sanity error with line - {0}'.format(line))
         project = 'Error'
-    if '@prio' in line:
-        priotag = re.search(r'\@prio\((.*?)\)', line).group(1)
-        if priotag == 'high':
-            priotag = 1
-        elif priotag == 'medium':
-            priotag = 2
-        elif priotag == 'low':
-            priotag = 3
+        try:
+            cur.execute("insert into tasks (project, taskline) values (?, ?)",
+                        (project, line.strip('\n')))
+        except sqlite3.Error as e:
+            sys.exit("parseInputTask - ERROR - An error occurred: {0}".format(e.args[0]))
+        con.commit()
+        return cur.lastrowid
+        # TODO - check that this works at output time - maybe output errors seperately
     else:
-        priotag = None
-    if '@start' in line:
-        starttag = re.search(r'\@start\((.*?)\)', line).group(1)
-    else:
-        starttag = None
-    if '@repeat' in line:
-        if '@prio' not in line or '@start' not in line or '@repeat' not in line or not\
-                    (('@work' not in line and '@home' in line) or (('@work' in line and
-                    '@home' not in line))):
-            project = 'Error'
-    # remove muiple spaces, not the leading tabs
-    #line = ' '.join(line.split('\s'))
-    line = re.sub(' +', ' ', line)
-    try:
-        cur.execute("insert into tasks (prio, startdate, project, taskline, done,\
-            repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (priotag, starttag, project, line.strip('\n'), done, repeat,
-            repeatinterval, duedate, duesoon, overdue, maybe))
-    except sqlite3.Error as e:
-        sys.exit("parseInputTask - An error occurred: {0}".format(e.args[0]))
-    con.commit()
-    return cur.lastrowid
+        if '@done' in line:
+            done = True
+        if '@maybe' in line:
+            maybe = True
+        if '@repeat' in line:
+            repeat = True
+            repeatinterval = re.search(r'\@repeat\((.*?)\)', line).group(1)
+        if '@due' in line:
+            duedate = re.search(r'\@due\((.*?)\)', line).group(1)
+            duealert = datetime.datetime.date(dateutil.parser.parse(duedate)) \
+                - datetime.timedelta(**{sett.duedelta: sett.dueinterval})
+            if duealert <= TODAY \
+                    <= datetime.datetime.date(dateutil.parser.parse(duedate)):
+                duesoon = True
+            if datetime.datetime.date(dateutil.parser.parse(duedate)) < TODAY:
+                overdue = True
+
+        if '@prio' in line:
+            priotag = re.search(r'\@prio\((.*?)\)', line).group(1)
+            if priotag == 'high':
+                priotag = 1
+            elif priotag == 'medium':
+                priotag = 2
+            elif priotag == 'low':
+                priotag = 3
+        else:
+            priotag = None
+        if '@start' in line:
+            starttag = re.search(r'\@start\((.*?)\)', line).group(1)
+        else:
+            starttag = None
+        if '@repeat' in line:
+            if '@prio' not in line or '@start' not in line or '@repeat' not in line or not\
+                        (('@work' not in line and '@home' in line) or (('@work' in line and
+                        '@home' not in line))):
+                project = 'Error'
+        # remove muiple spaces, not the leading tabs
+        #line = ' '.join(line.split('\s'))
+        line = re.sub(' +', ' ', line)
+        try:
+            cur.execute("insert into tasks (prio, startdate, project, taskline, done,\
+                repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
+                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (priotag, starttag, project, line.strip('\n'), done, repeat,
+                repeatinterval, duedate, duesoon, overdue, maybe))
+        except sqlite3.Error as e:
+            sys.exit("parseInputTask - An error occurred: {0}".format(e.args[0]))
+        con.commit()
+        return cur.lastrowid
 
 
 def parseInputNote(line, taskid, con):
@@ -361,7 +400,7 @@ def parseInput(tpfile, con, configfile):
             if not line.strip():
                 continue
             if line.strip() == '-':
-                continue
+                continue 
             if ':\n' in line:
                 # Project
                 project = line.strip()[:-1]
