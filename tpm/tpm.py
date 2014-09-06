@@ -261,22 +261,19 @@ def checkSanity(line):
         return False
 
     # check brackets
+    iparens = iter('()')
+    parens = dict(zip(iparens, iparens))
+    closing = parens.values()
+
     stack = []
-    pushChars, popChars = "<({[", ">)}]"
-    for c in str:
-        if c in pushChars:
-            stack.append(c)
-        elif c in popChars:
-            if not len(stack):
+    for c in line:
+        d = parens.get(c, None)
+        if d:
+            stack.append(d)
+        elif c in closing:
+            if not stack or c != stack.pop():
                 return False
-            else:
-                stackTop = stack.pop()
-                balancingBracket = pushChars[popChars.index(c)]
-                if stackTop != balancingBracket:
-                    return False
-        else:
-            return False
-    return not len(stack)
+    return not stack
 
 
 def parseInputTask(line, myproject, con, configfile):
@@ -301,7 +298,6 @@ def parseInputTask(line, myproject, con, configfile):
     maybe = False
 
     if checkSanity(line) is False:
-        print('DEBUG: Sanity error with line - {0}'.format(line))
         project = 'Error'
         try:
             cur.execute("insert into tasks (project, taskline) values (?, ?)",
@@ -331,7 +327,9 @@ def parseInputTask(line, myproject, con, configfile):
 
         if '@prio' in line:
             priotag = re.search(r'\@prio\((.*?)\)', line).group(1)
-            if priotag == 'high':
+            if '@SOC' in line:
+                priotag = 0
+            elif priotag == 'high':
                 priotag = 1
             elif priotag == 'medium':
                 priotag = 2

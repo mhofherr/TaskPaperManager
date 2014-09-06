@@ -229,6 +229,12 @@ Do you  have questions or comments about `TaskPaperManager`? Contact me via [tas
 
 ## Changelog
 
+### Version 1.3.6
+
+* added support for new tag `@SOC` (significant outcome; see MYN from Michael Linenberger); will now sort before high prio tasks
+* added new TaskPaper theme; `@SOC` is marked blue, `@prio(low)` is marked light gray
+* added sanity check for taskline; detects now mismatching round brackets and flags this as error
+
 ### Version 1.3.5
 
 * Implemented request #14; if `sendmail` or `pushover` are set to False, the other parameters in the respective config section can be empty
