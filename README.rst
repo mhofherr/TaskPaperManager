@@ -49,13 +49,12 @@ Follow these steps for installation:
 Command line
 ------------
 
-| The script requires the following command line:
-| ``tpm.py -i <inputfile> -c <configfile> -m <daily|review>``
+The script requires the following command line:
+``tpm.py -i <inputfile> -c <configfile> -m <daily|review>``
 
-| The individual options are:
-| \* -i: The full path to your taskpaper file \* -c: The full path to
-ypur config file (contents see below) \* -m: the mode of execution; may
-be either ``daily`` or ``review``
+The individual options are: \* -i: The full path to your taskpaper file
+\* -c: The full path to ypur config file (contents see below) \* -m: the
+mode of execution; may be either ``daily`` or ``review``
 
 Modes
 -----
@@ -208,6 +207,8 @@ The following tags are actively used in TPM:
    the *work* section
 -  @note: show that the task has notes added (additional lines);
    necessary since TaskPaper does not show notes when filtering for tags
+-  @SOC: Significant Outcome (see MYN from Michael Linenberger for
+   details); shows tasks which require several days
 
 Any other tags are supported insofar, as they are not touched by TPM.
 
@@ -307,7 +308,8 @@ TaskPaper Theme
 ---------------
 
 The TaskPaper theme highlights @overdue and @prio(high) in red and bold.
-@Duesoon is highlighted in dark orange.
+@Duesoon is highlighted in dark orange. @SOC is dark blue and bold.
+@prio(high) is light grey.
 
 KeyboardMaestro
 ---------------

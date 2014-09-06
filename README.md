@@ -12,7 +12,7 @@ It provides the following features:
 * Copy tasks with the tag @maybe in a dedicated maybe list and remove from master list
 * Provide a weekly review report (pdf, html, markdown)
 * verify validity of required tags
-* set a @note tag if task has associated notes  
+* set a @note tag if task has associated notes
 
 ## Build Status
 
@@ -38,10 +38,10 @@ Follow these steps for installation:
 
 ## Command line
 
-The script requires the following command line:  
+The script requires the following command line:
 `tpm.py -i <inputfile> -c <configfile> -m <daily|review>`
 
-The individual options are:  
+The individual options are:
 * -i: The full path to your taskpaper file
 * -c: The full path to ypur config file (contents see below)
 * -m: the mode of execution; may be either `daily` or `review`
@@ -161,6 +161,7 @@ The following tags are actively used in TPM:
 * @home: only used in @repeat tasks; will instantiate the new task in the *home* section
 * @work: only used in @repeat tasks; will instantiate the new task in the *work* section
 * @note: show that the task has notes added (additional lines); necessary since TaskPaper does not show notes when filtering for tags
+* @SOC: Significant Outcome (see MYN from Michael Linenberger for details); shows tasks which require several days
 
 Any other tags are supported insofar, as they are not touched by TPM.
 
@@ -199,10 +200,10 @@ TPM requires all tasks in one task file, formated in TaskPaper syntax. A TaskPap
 
     INBOX:
 
-Tasks flagged as *@maybe* will be copied to a file named *maybe.txt* in the same directory as the TaskPaper file. Tasks flagged as *@done* will be copied to a file named *archive.txt* (same directory). Each run of the the script will make a copy of the existing TaskPaper file to the subdirectory *backup* before making any modifications. The files maybe.txt and archive.txt and the backup-directory must exist before running the script. 
+Tasks flagged as *@maybe* will be copied to a file named *maybe.txt* in the same directory as the TaskPaper file. Tasks flagged as *@done* will be copied to a file named *archive.txt* (same directory). Each run of the the script will make a copy of the existing TaskPaper file to the subdirectory *backup* before making any modifications. The files maybe.txt and archive.txt and the backup-directory must exist before running the script.
 
 ## Regular script starts
-TPM is intended to be run once every 24 hours (e.g. by using cron). I run it on my server on my server once every day at 05:00 am in the morning, where my TaskPaper file is available on a mounted dropbox folder. 
+TPM is intended to be run once every 24 hours (e.g. by using cron). I run it on my server on my server once every day at 05:00 am in the morning, where my TaskPaper file is available on a mounted dropbox folder.
 
 ## Sending email
 You can either send email encrypted (gpg) or in plain text. The communication to the server uses SSL/TLS with starttls. Content encryption requires gnupg installed and the python-gnupg module.
@@ -213,7 +214,7 @@ Please mind: Pushover allows a maximum of 7500 messages per application token pe
 
 ## TaskPaper Theme
 
-The TaskPaper theme highlights @overdue and @prio(high) in red and bold. @Duesoon is highlighted in dark orange.
+The TaskPaper theme highlights @overdue and @prio(high) in red and bold. @Duesoon is highlighted in dark orange. @SOC is dark blue and bold. @prio(high) is light grey.
 
 ## KeyboardMaestro
 
