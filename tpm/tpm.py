@@ -469,8 +469,8 @@ def archiveDone(con):
         curup = con.cursor()
         cursel.execute("SELECT taskid, taskline, project FROM tasks where done = 1")
         for row in cursel:
-            taskstring = removeTaskParts(row[1], '@done')
-            newtask = '{0} @project({1}) @done({2})'.format(taskstring, row[2], DAYBEFORE)
+            #taskstring = removeTaskParts(row[1], '@done')
+            newtask = '{0} @project({1})'.format(row[1], row[2])
             curup.execute("UPDATE tasks SET taskline=?, project=? WHERE taskid=?",
                          (newtask, 'Archive', row[0]))
         con.commit()
