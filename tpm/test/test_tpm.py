@@ -30,10 +30,10 @@ def test_removeTags1():
     cursel = mycon.cursor()
     curin = mycon.cursor()
     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        repeat, repeatinterval, duedate, duesoon, overdue, maybe, today) values\
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ( 1, '2999-12-31', 'home', '- testtask @prio(high) @start(2999-12-31) @duesoon', 0, 0,
-        '-', '2999-12-31', 1, 0, 0))
+        '-', '2999-12-31', 1, 0, 0, 0))
     mycon.commit()
     tpm.tpm.removeTags(mycon)
     cursel.execute("SELECT taskline FROM tasks")
@@ -46,10 +46,10 @@ def test_removeTags2():
     cursel = mycon.cursor()
     curin = mycon.cursor()
     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        repeat, repeatinterval, duedate, duesoon, overdue, maybe, today) values\
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ( 1, '2999-12-31', 'home', '- testtask @prio(high) @start(2999-12-31) @overdue', 0, 0,
-        '-', '2999-12-31', 0, 1, 0))
+        '-', '2999-12-31', 0, 1, 0, 0))
     mycon.commit()
     tpm.tpm.removeTags(mycon)
     cursel.execute("SELECT taskline FROM tasks")
@@ -62,16 +62,32 @@ def test_removeTags3():
     cursel = mycon.cursor()
     curin = mycon.cursor()
     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        repeat, repeatinterval, duedate, duesoon, overdue, maybe, today) values\
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ( 1, '2999-12-31', 'home', '- testtask @prio(high) @start(2999-12-31)', 0, 0,
-        '-', '2999-12-31', 0, 0, 0))
+        '-', '2999-12-31', 0, 0, 0, 0))
     mycon.commit()
     tpm.tpm.removeTags(mycon)
     cursel.execute("SELECT taskline FROM tasks")
     for row in cursel:
         assert '@overdue' not in row[0]
         assert '@duesoon' not in row[0]
+
+
+def test_removeTags4():
+    mycon = my_initDB()
+    cursel = mycon.cursor()
+    curin = mycon.cursor()
+    curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
+        repeat, repeatinterval, duedate, duesoon, overdue, maybe, today) values\
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ( 1, '2999-12-31', 'home', '- testtask @prio(high) @start(2999-12-31) @today', 0, 0,
+        '-', '2999-12-31', 0, 1, 0, 1))
+    mycon.commit()
+    tpm.tpm.removeTags(mycon)
+    cursel.execute("SELECT taskline FROM tasks")
+    for row in cursel:
+        assert '@today' not in row[0]
 
 
 def test_removeTaskParts1():
@@ -183,10 +199,10 @@ def test_SetTags1():
     cursel = mycon.cursor()
     curin = mycon.cursor()
     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        repeat, repeatinterval, duedate, duesoon, overdue, maybe, today) values\
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ( 1, '2999-12-31', 'home', '- testtask @prio(high) @start(2999-12-31)', 0, 0,
-        '-', '2999-12-31', 1, 0, 0))
+        '-', '2999-12-31', 1, 0, 0, 0))
     mycon.commit()
     tpm.tpm.setTags(mycon)
     cursel.execute("SELECT taskline FROM tasks")
@@ -199,10 +215,10 @@ def test_SetTags2():
     cursel = mycon.cursor()
     curin = mycon.cursor()
     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        repeat, repeatinterval, duedate, duesoon, overdue, maybe, today) values\
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ( 1, '2999-12-31', 'home', '- testtask @prio(high) @start(2999-12-31)', 0, 0,
-        '-', '2999-12-31', 0, 1, 0))
+        '-', '2999-12-31', 0, 1, 0, 0))
     mycon.commit()
     tpm.tpm.setTags(mycon)
     cursel.execute("SELECT taskline FROM tasks")
@@ -215,16 +231,32 @@ def test_SetTags3():
     cursel = mycon.cursor()
     curin = mycon.cursor()
     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        repeat, repeatinterval, duedate, duesoon, overdue, maybe, today) values\
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ( 1, '2999-12-31', 'home', '- testtask @prio(high) @start(2999-12-31)', 0, 0,
-        '-', '2999-12-31', 0, 0, 0))
+        '-', '2999-12-31', 0, 0, 0, 0))
     mycon.commit()
     tpm.tpm.setTags(mycon)
     cursel.execute("SELECT taskline FROM tasks")
     for row in cursel:
         assert '@overdue' not in row[0]
         assert '@duesoon' not in row[0]
+
+
+def test_SetTags4():
+    mycon = my_initDB()
+    cursel = mycon.cursor()
+    curin = mycon.cursor()
+    curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
+        repeat, repeatinterval, duedate, duesoon, overdue, maybe, today) values\
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ( 1, '2999-12-31', 'home', '- testtask @prio(high) @start(2999-12-31)', 0, 0,
+        '-', '2999-12-31', 0, 1, 0, 1))
+    mycon.commit()
+    tpm.tpm.setTags(mycon)
+    cursel.execute("SELECT taskline FROM tasks")
+    for row in cursel:
+        assert '@today' in row[0]
 
 
 def test_parseArgs1():
@@ -251,20 +283,20 @@ def test_setrepeat():
     MONTH24 = TODAY - relativedelta(months=24)
 
     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        repeat, repeatinterval, duedate, duesoon, overdue, maybe, today) values\
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ( 1, DAYS2, 'Repeat', '    - testtask1 @prio(high) @repeat(2d) @work @start({0})'.format(DAYS2), 0, 1,
-        '2d', '2999-12-31', 0, 0, 0))
+        '2d', '2999-12-31', 0, 0, 0, 0))
     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        repeat, repeatinterval, duedate, duesoon, overdue, maybe, today) values\
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ( 2, WEEKS10, 'Repeat', '    - testtask2 @prio(medium) @repeat(10w) @work @start({0})'.format(WEEKS10), 0, 1,
-        '2d', '2999-12-31', 0, 0, 0))
+        '2d', '2999-12-31', 0, 0, 0, 0))
     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        repeat, repeatinterval, duedate, duesoon, overdue, maybe, today) values\
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ( 3, MONTH24, 'Repeat', '    - testtask3 @prio(low) @repeat(24m) @work @start({0})'.format(MONTH24), 0, 1,
-        '2d', '2999-12-31', 0, 0, 0))
+        '2d', '2999-12-31', 0, 0, 0, 0))
     mycon.commit()
     tpm.tpm.setRepeat(mycon)
     #cursel.execute("SELECT taskline FROM tasks where project = 'Repeat'")
@@ -368,14 +400,14 @@ def test_printDebugOutput(capsys):
     mycon = my_initDB()
     curin = mycon.cursor()
     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
-        repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        repeat, repeatinterval, duedate, duesoon, overdue, maybe, today) values\
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ( 1, '2d', 'work', '- testtask1 @prio(high) @repeat(2d) @work @start(2999-12-31)', 0, 1,
-        '2d', '2999-12-31', 0, 0, 0))
+        '2d', '2999-12-31', 0, 0, 0, 0))
     mycon.commit()
     tpm.tpm.printDebugOutput(mycon, 'test')
     out, err = capsys.readouterr()
-    assert out == 'test: 1 | 2d | work | - testtask1 @prio(high) @repeat(2d) @work @start(2999-12-31) | 0 | 1 | 2d | 2999-12-31 | 0 | 0 | 0\n'
+    assert out == 'test: 1 | 2d | work | - testtask1 @prio(high) @repeat(2d) @work @start(2999-12-31) | 0 | 1 | 2d | 2999-12-31 | 0 | 0 | 0 | 0\n'
 
 if __name__ == '__main__':
     pytest.main()

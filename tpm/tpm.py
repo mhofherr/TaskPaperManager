@@ -75,7 +75,8 @@ def initDB():
             duedate TEXT,
             duesoon INTEGER,
             overdue INTEGER,
-            maybe INTEGER
+            maybe INTEGER,
+            today INTEGER
             )''')
         cur.execute('''CREATE TABLE notes(
             noteid INTEGER PRIMARY KEY,
@@ -240,11 +241,11 @@ def printDebugOutput(con, prepend):
     try:
         cursel = con.cursor()
         cursel.execute("SELECT prio, startdate, project, taskline, done, repeat,\
-            repeatinterval, duedate, duesoon, overdue, maybe FROM tasks")
+            repeatinterval, duedate, duesoon, overdue, maybe, today FROM tasks")
         for row in cursel:
-            print("{0}: {1} | {2} | {3} | {4} | {5} | {6} | {7} | {8} | {9} | {10} | {11}".format(
+            print("{0}: {1} | {2} | {3} | {4} | {5} | {6} | {7} | {8} | {9} | {10} | {11} | {12}".format(
                 prepend, row[0], row[1], row[2], row[3],
-                row[4], row[5], row[6], row[7], row[8], row[9], row[10]))
+                row[4], row[5], row[6], row[7], row[8], row[9], row[10], row[11]))
         con.commit()
     except sqlite3.Error as e:
         sys.exit("printDebugOutput - An error occurred: {0}".format(e.args[0]))
@@ -296,6 +297,7 @@ def parseInputTask(line, myproject, con, configfile):
     duesoon = False
     overdue = False
     maybe = False
+    today = False
 
     if checkSanity(line) is False:
         project = 'Error'
@@ -339,6 +341,9 @@ def parseInputTask(line, myproject, con, configfile):
             priotag = None
         if '@start' in line:
             starttag = re.search(r'\@start\((.*?)\)', line).group(1)
+            # set today tag
+            if datetime.datetime.date(dateutil.parser.parse(starttag)) == TODAY:
+                today = True
         else:
             starttag = None
         if '@repeat' in line:
@@ -351,10 +356,10 @@ def parseInputTask(line, myproject, con, configfile):
         line = re.sub(' +', ' ', line)
         try:
             cur.execute("insert into tasks (prio, startdate, project, taskline, done,\
-                repeat, repeatinterval, duedate, duesoon, overdue, maybe) values\
-                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                repeat, repeatinterval, duedate, duesoon, overdue, maybe, today) values\
+                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (priotag, starttag, project, line.strip('\n'), done, repeat,
-                repeatinterval, duedate, duesoon, overdue, maybe))
+                repeatinterval, duedate, duesoon, overdue, maybe, today))
         except sqlite3.Error as e:
             sys.exit("parseInputTask - An error occurred: {0}".format(e.args[0]))
         con.commit()
@@ -398,7 +403,7 @@ def parseInput(tpfile, con, configfile):
             if not line.strip():
                 continue
             if line.strip() == '-':
-                continue 
+                continue
             if ':\n' in line:
                 # Project
                 project = line.strip()[:-1]
@@ -418,7 +423,7 @@ def parseInput(tpfile, con, configfile):
 
 
 def removeTags(con):
-    """remove overdue and duesoon tags
+    """remove overdue, duesoon and today tags
 
     :param con: the database connection
     """
@@ -426,9 +431,11 @@ def removeTags(con):
     try:
         cursel = con.cursor()
         curup = con.cursor()
-        cursel.execute("SELECT taskid, taskline FROM tasks where overdue = 1 or duesoon = 1")
+        cursel.execute("SELECT taskid, taskline FROM tasks where taskline like '%@overdue%'\
+            or taskline like '%@duesoon%'\
+            or taskline like '%@today%'")
         for row in cursel:
-                taskstring = removeTaskParts(row[1], '@overdue @duesoon')
+                taskstring = removeTaskParts(row[1], '@overdue @duesoon @today')
                 curup.execute("UPDATE tasks SET taskline=? WHERE taskid=?",
                              (taskstring, row[0]))
         con.commit()
@@ -437,7 +444,7 @@ def removeTags(con):
 
 
 def setTags(con):
-    """set overdue and duesoon tags
+    """set overdue, duesoon and today tags
 
     :param con: the database connection
     """
@@ -453,6 +460,10 @@ def setTags(con):
         for row in cursel:
             curup.execute("UPDATE tasks SET taskline=? WHERE taskid=?",
                          ('{0} @duesoon'.format(row[1]), row[0]))
+        cursel.execute("SELECT taskid, taskline FROM tasks where today = 1")
+        for row in cursel:
+            curup.execute("UPDATE tasks SET taskline=? WHERE taskid=?",
+                         ('{0} @today'.format(row[1]), row[0]))
         con.commit()
     except sqlite3.Error as e:
         sys.exit("setTags - An error occurred: {0}".format(e.args[0]))
