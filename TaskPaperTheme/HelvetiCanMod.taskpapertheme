@@ -83,6 +83,11 @@
     />
     <entryRule matchesQuery="isgroupheader" paragraphStyleID="groupHeader" lineCharacterStyleID="groupHeader" frontParagraphBackgroundStyleID="groupHeader" />
 
+    <!-- @today style -->
+    <color id="today" red="1.00000" green="0.54902" blue="0.0" alpha="1.0" />
+    <characterStyle id="today" foregroundColorID="today" />
+    <entryRule matchesQuery="@today" contentCharacterStyleID="today" />
+
     <!-- @done style -->
     <color id="done" red="0.25" green="0.25" blue="0.25" alpha="1.0" />
     <characterStyle id="done" strikethroughStyle="NSUnderlineStyleSingle" foregroundColorID="done" />
@@ -93,10 +98,10 @@
     <characterStyle id="duesoon" foregroundColorID="duesoon" />
     <entryRule matchesQuery="@duesoon" contentCharacterStyleID="duesoon" />
 
-    <!-- @today style -->
-    <color id="today" red="0.86275" green="0.07843" blue="0.23529" alpha="1.0" />
-    <characterStyle id="today" fontID="bolder" foregroundColorID="today" />
-    <entryRule matchesQuery="@prio=high" contentCharacterStyleID="today" />
+    <!-- @prio(high) style -->
+    <color id="high" red="0.86275" green="0.07843" blue="0.23529" alpha="1.0" />
+    <characterStyle id="high" fontID="bolder" foregroundColorID="high" />
+    <entryRule matchesQuery="@prio=high" contentCharacterStyleID="high" />
 
     <!-- @low style -->
     <color id="low" red="0.75686" green="0.80392" blue="0.75686" alpha="1.0" />
@@ -112,5 +117,7 @@
     <color id="overdue" red="0.86275" green="0.07843" blue="0.23529" alpha="1.0" />
     <characterStyle id="overdue" fontID="bolder" foregroundColorID="overdue" />
     <entryRule matchesQuery="@overdue" contentCharacterStyleID="overdue" />
+
+
 
 </theme>
