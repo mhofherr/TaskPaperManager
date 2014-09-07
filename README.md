@@ -238,7 +238,7 @@ Do you  have questions or comments about `TaskPaperManager`? Contact me via [tas
 
 ### Version 1.4.0
 
-* set `@today` tag if startdate is today; the TaskPaper theme now underlines all tasks with the `@today` tag (supporting the MYN system from Michael Linenberger)
+* set `@today` tag if startdate is today; the TaskPaper theme now marks all tasks with the `@today` tag (supporting the MYN system from Michael Linenberger) in orange
 * `@done` now uses the user-supplied date and does not overwrite it
 * fixed a bug with function responsible for removing old tags (@overdue, @duesoon)
 

@@ -189,8 +189,8 @@ The following tags are actively used in TPM:
 -  @due(): the due day; same format as above
 -  @prio(): high, medium or low; my used based in the MYN methodology of
    Michael Linenberger
--  @done: task is done; will be moved to the file "archive.txt" in the
-   same folder
+-  @done(): task is done, with date of date finished
+-  ; will be moved to the file "archive.txt" in the same folder
 -  @customer(): the task is associated with a customer
 -  @maybe: will be moved to a separate list named "maybe.txt" in the
    same folder
@@ -209,6 +209,10 @@ The following tags are actively used in TPM:
    necessary since TaskPaper does not show notes when filtering for tags
 -  @SOC: Significant Outcome (see MYN from Michael Linenberger for
    details); shows tasks which require several days
+-  @today: handled by TPM, not manually; is set if startdate is today
+-  @overdue: handled by TPM, not manually; duedate is before today
+-  @duesoon: handled by TPM, not manually; duedate is in the next x days
+   (x defined in config file)
 
 Any other tags are supported insofar, as they are not touched by TPM.
 
@@ -223,7 +227,10 @@ are:
    either '@work' or '@home'
 
 If a task does not fulfill these requirements it is sorted in project
-'Error'
+'Error'.
+
+TPM additionally checks for matching round brackets. If the brackets do
+not match, the task is sorted into project 'Error'.
 
 Repeating tasks
 ---------------
@@ -336,6 +343,16 @@ FAQ
 
 Changelog
 ---------
+
+Version 1.4.0
+~~~~~~~~~~~~~
+
+-  set ``@today`` tag if startdate is today; the TaskPaper theme now
+   marks all tasks with the ``@today`` tag (supporting the MYN system
+   from Michael Linenberger) in orange
+-  ``@done`` now uses the user-supplied date and does not overwrite it
+-  fixed a bug with function responsible for removing old tags
+   (@overdue, @duesoon)
 
 Version 1.3.6
 ~~~~~~~~~~~~~
