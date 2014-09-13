@@ -355,6 +355,7 @@ Version 1.4.0
    ``-b`` parameter to explicitely generate a backup of your todo file.
    Since I invoke the script several times a day via Alfred, I want to
    make a backup only during the regular nightly runs of tpm.
+-  added Alfred workflow sample to invoke tpm
 -  set ``@today`` tag if startdate is today; the TaskPaper theme now
    marks all tasks with the ``@today`` tag (supporting the MYN system
    from Michael Linenberger) in orange

@@ -243,6 +243,7 @@ Do you  have questions or comments about `TaskPaperManager`? Contact me via [tas
 ### Version 1.4.0
 
 * backups are no longer performed with every run in daily-mode; set the `-b` parameter to explicitely generate a backup of your todo file. Since I invoke the script several times a day via Alfred, I want to make a backup only during the regular nightly runs of tpm.
+* added Alfred workflow sample to invoke tpm
 * set `@today` tag if startdate is today; the TaskPaper theme now marks all tasks with the `@today` tag (supporting the MYN system from Michael Linenberger) in orange
 * `@done` now uses the user-supplied date and does not overwrite it
 * fixed a bug with function responsible for removing old tags (@overdue, @duesoon)
