@@ -13,6 +13,7 @@ It provides the following features:
 * Provide a weekly review report (pdf, html, markdown)
 * verify validity of required tags
 * set a @note tag if task has associated notes
+* optionally: create a backup before modifying the todo list
 
 ## Build Status
 
@@ -45,6 +46,9 @@ The individual options are:
 * -i: The full path to your taskpaper file
 * -c: The full path to ypur config file (contents see below)
 * -m: the mode of execution; may be either `daily` or `review`
+
+Optionally:
+* -b: makes a backup of the todo file in subdirectory `backup`, relative to the todo list; only in daily mode
 
 ## Modes
 
@@ -114,11 +118,11 @@ The variable parameters are configured via a separate config file (tpm.cfg):
 
 * **debug**: When enabling debug mode the script will not modify your tasklist but will print instead debug output. This has no influence on sending email or sending pushover messages.
 * **dueinterval**: all tasks will be tagged as @duesoon when today is x days (or whatever you define for *duedelta*) before the duedate (defined in @due(...))
-* **duedelta**: unit for *dueinterval*; may be `days`, `weeks` or `months` 
+* **duedelta**: unit for *dueinterval*; may be `days`, `weeks` or `months`
 * **sendmail**: Do you want to get a daily overview for your tasks by mail? If set to ´False`, the other parameters in section [mail] can be empty.
 * **sendmailhome**: For your home tasks?
 * **sendmailwork**: For your works tasks?
-* **smtpserver**: The FQDN of your smtp server 
+* **smtpserver**: The FQDN of your smtp server
 * **smtpport**: The listening port of your smtp server
 * **smtpuser**: Username
 * **smtppassword**: Password
@@ -220,11 +224,11 @@ Please mind: Pushover allows a maximum of 7500 messages per application token pe
 
 ## TaskPaper Theme
 
-The TaskPaper theme highlights @overdue and @prio(high) in red and bold. @Duesoon is highlighted in dark orange. @SOC is dark blue and bold. @prio(high) is light grey.
+The TaskPaper theme highlights @overdue and @prio(high) in red and bold. @Duesoon is highlighted in dark orange. @SOC is dark blue and bold. @prio(low) is light grey.
 
 ## KeyboardMaestro
 
-Adding tags by hand can be quite tedious, so KeyboardMaestro comes to the rescue. You can find my KM macros for all supported text in the directory "KeyboardMaestro".
+Adding tags by hand can be quite tedious, so KeyboardMaestro comes to the rescue. You can find my KM macros for all supported tags in the directory "KeyboardMaestro".
 
 ## Contact
 
@@ -238,6 +242,7 @@ Do you  have questions or comments about `TaskPaperManager`? Contact me via [tas
 
 ### Version 1.4.0
 
+* backups are no longer performed with every run in daily-mode; set the `-b` parameter to explicitely generate a backup of your todo file. Since I invoke the script several times a day via Alfred, I want to make a backup only during the regular nightly runs of tpm.
 * set `@today` tag if startdate is today; the TaskPaper theme now marks all tasks with the `@today` tag (supporting the MYN system from Michael Linenberger) in orange
 * `@done` now uses the user-supplied date and does not overwrite it
 * fixed a bug with function responsible for removing old tags (@overdue, @duesoon)
@@ -287,5 +292,5 @@ Do you  have questions or comments about `TaskPaperManager`? Contact me via [tas
 
 * released after several bugfixes and heavy refactoring
 * version 1.0.0 will include review mode
-* internal: included tests, Travis CI, coveralls.io ... 
+* internal: included tests, Travis CI, coveralls.io ...
 

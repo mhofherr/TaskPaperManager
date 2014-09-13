@@ -260,14 +260,14 @@ def test_SetTags4():
 
 
 def test_parseArgs1():
-    (myinfile, myconfigfile, mymode) = tpm.tpm.parseArgs(['-i', 'myinfile', '-c', 'myconfigfile', '-m', 'review'])
+    (myinfile, myconfigfile, mymode, backup) = tpm.tpm.parseArgs(['-i', 'myinfile', '-c', 'myconfigfile', '-m', 'review'])
     assert myinfile == 'myinfile'
     assert myconfigfile == 'myconfigfile'
     assert mymode == 'review'
 
 
 def test_parseArgs2():
-    (myinfile, myconfigfile, mymode) = tpm.tpm.parseArgs(['-i', 'myinfile', '-c', 'myconfigfile', '-m', 'daily'])
+    (myinfile, myconfigfile, mymode, backup) = tpm.tpm.parseArgs(['-i', 'myinfile', '-c', 'myconfigfile', '-m', 'daily'])
     assert myinfile == 'myinfile'
     assert myconfigfile == 'myconfigfile'
     assert mymode == 'daily'
@@ -393,7 +393,7 @@ def test_settings():
 def test_usage(capsys):
     tpm.tpm.usage()
     out, err = capsys.readouterr()
-    assert out == 'tpm.py -i <inputfile> -c <configfile> -m <mode:daily|review>\n'
+    assert out == 'tpm.py -i <inputfile> -c <configfile> -m <mode:daily|review>\noptional: -b to backup the todo-file before modifying it\n'
 
 
 def test_printDebugOutput(capsys):

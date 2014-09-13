@@ -16,6 +16,7 @@ TaskPaper file. It provides the following features:
 -  Provide a weekly review report (pdf, html, markdown)
 -  verify validity of required tags
 -  set a @note tag if task has associated notes
+-  optionally: create a backup before modifying the todo list
 
 Build Status
 ------------
@@ -55,6 +56,9 @@ The script requires the following command line:
 The individual options are: \* -i: The full path to your taskpaper file
 \* -c: The full path to ypur config file (contents see below) \* -m: the
 mode of execution; may be either ``daily`` or ``review``
+
+Optionally: \* -b: makes a backup of the todo file in subdirectory
+``backup``, relative to the todo list; only in daily mode
 
 Modes
 -----
@@ -316,13 +320,13 @@ TaskPaper Theme
 
 The TaskPaper theme highlights @overdue and @prio(high) in red and bold.
 @Duesoon is highlighted in dark orange. @SOC is dark blue and bold.
-@prio(high) is light grey.
+@prio(low) is light grey.
 
 KeyboardMaestro
 ---------------
 
 Adding tags by hand can be quite tedious, so KeyboardMaestro comes to
-the rescue. You can find my KM macros for all supported text in the
+the rescue. You can find my KM macros for all supported tags in the
 directory "KeyboardMaestro".
 
 Contact
@@ -347,6 +351,10 @@ Changelog
 Version 1.4.0
 ~~~~~~~~~~~~~
 
+-  backups are no longer performed with every run in daily-mode; set the
+   ``-b`` parameter to explicitely generate a backup of your todo file.
+   Since I invoke the script several times a day via Alfred, I want to
+   make a backup only during the regular nightly runs of tpm.
 -  set ``@today`` tag if startdate is today; the TaskPaper theme now
    marks all tasks with the ``@today`` tag (supporting the MYN system
    from Michael Linenberger) in orange

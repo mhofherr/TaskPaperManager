@@ -94,6 +94,7 @@ def usage():
     """Prints usage information."""
 
     print('tpm.py -i <inputfile> -c <configfile> -m <mode:daily|review>')
+    print('optional: -b to backup the todo-file before modifying it')
 
 
 def parseArgs(argv):
@@ -106,8 +107,10 @@ def parseArgs(argv):
     inputfile = ''
     configfile = ''
     modus = ''
+    backup = False
+
     try:
-        opts, args = getopt.getopt(argv, "hi:c:m:", ["help", "infile=", "conffile=", "modus="])
+        opts, args = getopt.getopt(argv, "hbi:c:m:", ["help", "infile=", "conffile=", "modus="])
     except getopt.GetoptError:
         usage()
         sys.exit(2)
@@ -115,6 +118,8 @@ def parseArgs(argv):
         if opt in ("-h", "--help"):
             usage()
             sys.exit()
+        elif opt in ("-b", "--backup"):
+            backup = True
         elif opt in ("-i", "--infile"):
             inputfile = arg
         elif opt in ("-c", "--conffile"):
@@ -127,7 +132,7 @@ def parseArgs(argv):
     if modus != 'daily' and modus != "review":
         usage()
         sys.exit()
-    return (inputfile, configfile, modus)
+    return (inputfile, configfile, modus, backup)
 
 
 def removeTaskParts(instring, removelist):
@@ -646,6 +651,7 @@ def printDebug(con):
     mytxt = mytxt.encode("utf-8")
     print(mytxt)
 
+
 def createOutFile(con):
     """prepare the text for the different output files
 
@@ -1001,7 +1007,7 @@ def myFile(mytext, filename, mode):
 
 
 def main():
-    (inputfile, configfile, modus) = parseArgs(sys.argv[1:])
+    (inputfile, configfile, modus, backup) = parseArgs(sys.argv[1:])
     mycon = initDB()
     sett = settings(configfile)
     parseInput(inputfile, mycon, configfile)
@@ -1017,7 +1023,8 @@ def main():
             printDebug(mycon)
         else:
             (mytxt, mytxtdone, mytxtmaybe) = createOutFile(mycon)
-            shutil.move(inputfile, '{0}backup/todo_{1}.txt'.format(inputfile[:-8], TODAY))
+            if backup:
+                shutil.move(inputfile, '{0}backup/todo_{1}.txt'.format(inputfile[:-8], TODAY))
             myFile(mytxt, inputfile, 'w')
             myFile(mytxtdone, '{0}archive.txt'.format(inputfile[:-8]), 'a')
             myFile(mytxtmaybe, '{0}maybe.txt'.format(inputfile[:-8]), 'a')
