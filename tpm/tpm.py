@@ -44,7 +44,6 @@ import urllib
 import smtplib
 import gnupg
 import sqlite3
-import cStringIO
 import weasyprint
 
 from six.moves import configparser
@@ -166,8 +165,8 @@ class settings:
         self.dueinterval = Config.getint('tpm', 'dueinterval')
         self.sendmail = Config.getboolean('mail', 'sendmail')
         if self.sendmail:
-            self.sendmailhome = Config.getboolean('mail', 'sendmailhome')
-            self.sendmailwork = Config.getboolean('mail', 'sendmailwork')
+            ####self.sendmailhome = Config.getboolean('mail', 'sendmailhome')
+            ####self.sendmailwork = Config.getboolean('mail', 'sendmailwork')
             self.smtpserver = ConfigSectionMap(Config, 'mail')['smtpserver']
             self.smtpport = Config.getint('mail', 'smtpport')
             self.smtpuser = ConfigSectionMap(Config, 'mail')['smtpuser']
@@ -176,11 +175,12 @@ class settings:
             self.gnupghome = ConfigSectionMap(Config, 'mail')['gnupghome']
             self.targetfingerprint = ConfigSectionMap(Config, 'mail')['targetfingerprint']
             self.sourceemail = ConfigSectionMap(Config, 'mail')['sourceemail']
-            self.desthomeemail = ConfigSectionMap(Config, 'mail')['desthomeemail']
-            self.destworkemail = ConfigSectionMap(Config, 'mail')['destworkemail']
+            ####self.desthomeemail = ConfigSectionMap(Config, 'mail')['desthomeemail']
+            ####self.destworkemail = ConfigSectionMap(Config, 'mail')['destworkemail']
+            self.destemail = ConfigSectionMap(Config, 'mail')['destemail']
         else:
-            self.sendmailhome = False
-            self.sendmailwork = False
+            ####self.sendmailhome = False
+            ####self.sendmailwork = False
             self.smtpserver = ''
             self.smtpport = 1
             self.smtpuser = ''
@@ -189,19 +189,20 @@ class settings:
             self.gnupghome = ''
             self.targetfingerprint = ''
             self.sourceemail = ''
-            self.desthomeemail = ''
-            self.destworkemail = ''
+            ####self.desthomeemail = ''
+            ####self.destworkemail = ''
+            self.destemail = ''
         self.pushover = Config.getboolean('pushover', 'pushover')
         if self.pushover:
             self.pushovertoken = ConfigSectionMap(Config, 'pushover')['pushovertoken']
             self.pushoveruser = ConfigSectionMap(Config, 'pushover')['pushoveruser']
-            self.pushoverhome = Config.getboolean('pushover', 'pushoverhome')
-            self.pushoverwork = Config.getboolean('pushover', 'pushoverwork')
+            ####self.pushoverhome = Config.getboolean('pushover', 'pushoverhome')
+            ####self.pushoverwork = Config.getboolean('pushover', 'pushoverwork')
         else:
             self.pushovertoken = ''
             self.pushoveruser = ''
-            self.pushoverhome = False
-            self.pushoverwork = False
+            ####self.pushoverhome = False
+            ####self.pushoverwork = False
         self.reviewpath = ConfigSectionMap(Config, 'review')['reviewpath']
         self.reviewagenda = Config.getboolean('review', 'reviewagenda')
         self.reviewprojects = Config.getboolean('review', 'reviewprojects')
@@ -211,8 +212,8 @@ class settings:
         self.reviewoutputpdf = Config.getboolean('review', 'outputpdf')
         self.reviewoutputhtml = Config.getboolean('review', 'outputhtml')
         self.reviewoutputmd = Config.getboolean('review', 'outputmd')
-        self.reviewhome = Config.getboolean('review', 'reviewhome')
-        self.reviewwork = Config.getboolean('review', 'reviewwork')
+        ####self.reviewhome = Config.getboolean('review', 'reviewhome')
+        ####self.reviewwork = Config.getboolean('review', 'reviewwork')
 
 
 def ConfigSectionMap(Config, section):
@@ -286,8 +287,8 @@ def parseInputTask(line, myproject, con, configfile):
     """adds a new task to the database
 
     :param line: the content of the task
-    :param project: the project section of the task
-    :param con: the datbase connection
+    :param project: the project for the task
+    :param con: the database connection
     :param configfile: the tpm config file
     :returns: taskid of the new task in the database
     """
@@ -356,8 +357,7 @@ def parseInputTask(line, myproject, con, configfile):
                         (('@work' not in line and '@home' in line) or (('@work' in line and
                         '@home' not in line))):
                 project = 'Error'
-        # remove muiple spaces, not the leading tabs
-        #line = ' '.join(line.split('\s'))
+        # remove multiple spaces, not the leading tabs
         line = re.sub(' +', ' ', line)
         try:
             cur.execute("insert into tasks (prio, startdate, project, taskline, done,\
@@ -569,16 +569,20 @@ def setRepeat(con):
 
             # instantiate anything which is older or equal than today
             if newstartdate <= TODAY:
-                if '@home' in row[2]:
-                    projecttag = 'home'
-                if '@work' in row[2]:
-                    projecttag = 'work'
-
+                # ToDo - wie wird das jetzt gemapped, wenn die Proojekte anders belegt werden?
+                ####if '@home' in row[2]:
+                ####    projecttag = 'home'
+                ####if '@work' in row[2]:
+                ####    projecttag = 'work'
+                if '@project' in row[2]:
+                    projecttag = re.search(r'\@project\((.*?)\)', row[2]).group(1)
+                else:
+                    projecttag = "Error"
                 # get the relevant information from the task description
-                taskstring = removeTaskParts(row[2], '@repeat @home @work @start')
+                taskstring = removeTaskParts(row[2], '@repeat @project @start')
                 taskstring = '{0} @start({1})'.format(taskstring, newstartdate)
 
-                # ! create new instance of repeat task
+                # create new instance of repeat task
                 try:
                     # ! todo: repeatinterval should be NULL, not '-'
                     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
@@ -608,7 +612,7 @@ def printGroup(con, destination):
     """helper function for printDebug - does the actual debug printing
 
     :param con: the database communication
-    :param destination: what project ('home', 'work' ...) to print
+    :param destination: what project to print
     :returns: result as text string
     """
 
@@ -634,20 +638,15 @@ def printDebug(con):
     :param con: the database connection
     """
 
-    mytxt = 'work:\n'
-    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'work'))
-    mytxt = '{0}\nhome:\n'.format(mytxt)
-    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'home'))
+    projectlist = createProjectList(con)
+    mytxt = ''
+    for project in projectlist:
+        mytxt = '{0}\n{1}:\n'.format(mytxt, project)
+        mytxt = '{0}{1}'.format(mytxt, printGroup(con, project))
     mytxt = '{0}\nRepeat:\n'.format(mytxt)
     mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'Repeat'))
     mytxt = '{0}\nINBOX:\n'.format(mytxt)
     mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'INBOX'))
-    mytxt = '{0}\nArchive:\n'.format(mytxt)
-    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'Archive'))
-    mytxt = '{0}\nError:\n'.format(mytxt)
-    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'Error'))
-    mytxt = '{0}\nMaybe:\n'.format(mytxt)
-    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'Maybe'))
     mytxt = mytxt.encode("utf-8")
     print(mytxt)
 
@@ -658,6 +657,7 @@ def createOutFile(con):
     :param con: the database connection
     :returns: the text for the new taskpaper file, archive file and maybe file
     """
+    # ToDo: wie oben bei Debug
 
     mytxt = 'work:\n'
     mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'work'))
@@ -680,40 +680,28 @@ def createTaskListMaybe(filename):
     """parses maybe file and generates content as text string
 
     :param filename: the filename of the maybe file
-    :param destination: run for 'work' or 'home' tasks?
-    :returns: two text string with content of maybe file (home/work)
+    :returns: a text string with content of maybe file
     """
 
     with open(filename, 'rb') as f:
         lines = f.readlines()
-    mytxthome = ''
-    mytxtwork = ''
+    mytxt = ''
     for line in lines:
         line = line.decode("utf-8")
-        if '@project(home)' in line:
-            taskstring = removeTaskParts(line.strip('\n'), '@start @prio @project @customer @waiting')
-            mytxthome = '{0}\n{1}'.format(mytxthome, taskstring)
-        elif 'project(work)' in line:
-            taskstring = removeTaskParts(line.strip('\n'), '@start @prio @project @customer @waiting')
-            mytxtwork = '{0}\n{1}'.format(mytxtwork, taskstring)
+        taskstring = removeTaskParts(line.strip('\n'), '@start @prio @project @customer @waiting')
+        mytxt = '{0}\n{1}'.format(mytxt, taskstring)
     f.close()
-    if mytxthome != '':
-        mytxthome = '{0}\n\n{1}\n'.format('## Maybe list:', mytxthome)
+    if mytxt != '':
+        mytxt = '{0}\n\n{1}\n'.format('## Maybe list:', mytxt)
     else:
-        mytxthome = ''
-    if mytxtwork != '':
-        mytxtwork = '{0}\n\n{1}\n'.format('## Maybe list:', mytxtwork)
-    else:
-        mytxtwork = ''
-
-    return (mytxthome, mytxtwork)
+        mytxt = ''
+    return mytxt
 
 
-def createTaskListHigh(con, destination):
+def createTaskListHigh(con):
     """prepares a list of tasks with @prio(high)
 
     :param con: the database connection
-    :param destination: run for 'work' or 'home' tasks?
     :returns: the result tasks as text string
     """
 
@@ -721,9 +709,9 @@ def createTaskListHigh(con, destination):
         mytxt = ''
         cursel = con.cursor()
         cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
-            where project = ? and prio = 1 and \
+            where prio = 1 and \
             startdate <= date( julianday(date('now'))) and done = 0 ORDER BY prio asc,\
-            startdate desc ", (destination,))
+            startdate desc ")
         for row in cursel:
             taskstring = removeTaskParts(row[0], '@start @prio')
             mytxt = '{0}{1}\n'.format(mytxt, taskstring)
@@ -735,11 +723,10 @@ def createTaskListHigh(con, destination):
         sys.exit("createTaskListHigh - An error occurred: {0}".format(e.args[0]))
 
 
-def createTaskListOverdue(con, destination):
+def createTaskListOverdue(con):
     """prepares a list of tasks with @overdue
 
     :param con: the database connection
-    :param destination: run for 'work' or 'home' tasks?
     :returns: the result tasks as text string
     """
 
@@ -747,8 +734,8 @@ def createTaskListOverdue(con, destination):
         mytxt = ''
         cursel = con.cursor()
         cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
-            where project = ? and overdue = 1 and \
-            done = 0 ORDER BY prio asc, startdate desc ", (destination,))
+            where overdue = 1 and \
+            done = 0 ORDER BY prio asc, startdate desc ")
         for row in cursel:
             taskstring = removeTaskParts(row[0], '@start @prio')
             mytxt = '{0}{1}\n'.format(mytxt, taskstring)
@@ -883,11 +870,10 @@ def sendMail(content, subject, sender, receiver, text_subtype, encrypted, config
         sys.exit("sending email failed; {0}".format(exc))
 
 
-def createMail(con, destination, configfile):
+def createMail(con, configfile):
     """create text for email output
 
     :param con: the database connection
-    :param destination: either 'home' or 'work'
     :param configfile: the tpm config file
     """
 
@@ -901,8 +887,8 @@ def createMail(con, destination, configfile):
 
             # Overdue
             cursel.execute("SELECT taskline, project, prio, startdate, duedate FROM tasks\
-                where project = ? and overdue = 1 and done = 0 ORDER BY prio asc,\
-                startdate desc ", (destination,))
+                where overdue = 1 and done = 0 ORDER BY prio asc,\
+                startdate desc ")
             for row in cursel:
                 taskstring = removeTaskParts(row[0], '@')
                 taskstring = '{0} @due({1})'.format(taskstring, row[4])
@@ -911,8 +897,8 @@ def createMail(con, destination, configfile):
 
             # Due soon
             cursel.execute("SELECT taskline, project, prio, startdate, duedate FROM tasks\
-                where project = ? and duesoon = 1 and done = 0 ORDER BY prio asc,\
-                startdate desc ", (destination,))
+                where duesoon = 1 and done = 0 ORDER BY prio asc,\
+                startdate desc ")
             for row in cursel:
                 taskstring = removeTaskParts(row[0], '@')
                 taskstring = '{0} @due({1})'.format(taskstring, row[4])
@@ -922,9 +908,9 @@ def createMail(con, destination, configfile):
 
             # All other high prio tasks
             cursel.execute("SELECT taskline, project, prio, startdate, duedate FROM tasks\
-                where project = ? and prio = 1 and duesoon = 0 and overdue = 0 and \
+                where prio = 1 and duesoon = 0 and overdue = 0 and \
                 startdate <= date( julianday(date('now'))) and done = 0 ORDER BY prio asc,\
-                startdate desc ", (destination,))
+                startdate desc ")
             for row in cursel:
                 taskstring = removeTaskParts(row[0], '@start @prio')
                 if row[4] != '2999-12-31':
@@ -936,13 +922,12 @@ def createMail(con, destination, configfile):
         return mytxtasc
 
 
-def createUniqueList(con, element, group):
+def createUniqueList(con, element):
     """creates a unique list of tag contents for a given group
      e.g. a unique list of all customers (derived from @customer)
 
      :param con: the database connection
      :param element: the tag to parse the unique list from
-     :param group: search in which group ('work' or 'home')
      :returns: a list of unique names from `element´
      """
 
@@ -950,7 +935,7 @@ def createUniqueList(con, element, group):
     try:
         cursel = con.cursor()
         cursel.execute("SELECT taskline, project FROM tasks\
-            where project = ? ORDER BY prio asc, startdate desc ", (group,))
+            ORDER BY prio asc, startdate desc ")
         for row in cursel:
             if '@{0}'.format(element) in row[0]:
                 mycontent = re.search(r'\@' + element + '\((.*?)\)', row[0]).group(1)
@@ -961,14 +946,30 @@ def createUniqueList(con, element, group):
     return mylist
 
 
-def createTaskList(con, element, headline, mylist, group):
+def createProjectList(con):
+    """creates a unique list of projects
+
+     :param con: the database connection
+     :returns: a the projects list
+     """
+    mylist = []
+    try:
+        cursel = con.cursor()
+        cursel.execute("SELECT DISTINCT project FROM tasks")
+        for row in cursel:
+            mylist.append(row[0])
+    except sqlite3.Error as e:
+        sys.exit("createProjectList - An error occurred: {0}".format(e.args[0]))
+    return mylist
+
+
+def createTaskList(con, element, headline, mylist):
     """create a list of tasks for specified content
 
     :param con: the database connection
     :param element: the tag to use
     :param headline: the headline to use for the output
     :param mylist: a list of unique names
-    :param group: search in which group ('work' or 'home')
     :returns: text string with task list
     """
 
@@ -978,7 +979,7 @@ def createTaskList(con, element, headline, mylist, group):
         try:
             cursel = con.cursor()
             cursel.execute("SELECT taskline, project FROM tasks\
-                where project = ? ORDER BY prio asc, startdate desc ", (group,))
+                ORDER BY prio asc, startdate desc ")
             for row in cursel:
                 if '@{0}'.format(element) in row[0]:
                     if re.search(r'\@' + element + '\((.*?)\)', row[0]).group(1) == listelement:
@@ -1030,83 +1031,61 @@ def main():
             myFile(mytxtmaybe, '{0}maybe.txt'.format(inputfile[:-8]), 'a')
         if sett.sendmail:
             source = sett.sourceemail
-            desthome = sett.desthomeemail
-            destwork = sett.destworkemail
-            if sett.sendmailhome:
-                mytxtasc = createMail(mycon, 'home', configfile)
-                myhtml = markdown2html(mytxtasc)
-                # ! todo: add to config for user to choose if 'work' or 'home' shall be encrypted
-                sendMail(myhtml, 'Taskpaper daily overview', source,
-                         desthome, 'html', False, configfile)
-            if sett.sendmailwork:
-                mytxtasc = createMail(mycon, 'work', configfile)
-                sendMail(mytxtasc, 'Taskpaper daily overview', source,
-                         destwork, 'text', True, configfile)
+            dest = sett.destemail
+            mytxtasc = createMail(mycon, configfile)
+            myhtml = markdown2html(mytxtasc)
+            # ! todo: use encryption setting from config file
+            sendMail(myhtml, 'Taskpaper daily overview', source,
+                         dest, 'html', False, configfile)
         if sett.pushover:
-            if sett.pushoverhome:
-                pushovertxt = createTaskListHigh(mycon, 'home')
-                pushovertxt = '{0}\n{1}'.format(pushovertxt, createTaskListOverdue(mycon, 'home'))
-                # pushover limits messages sizes to 512 characters
-                if len(pushovertxt) > 512:
-                        pushovertxt = pushovertxt[:512]
-                sendPushover(pushovertxt, configfile)
-            if sett.pushoverwork:
-                pushovertxt = createTaskListHigh(mycon, 'work')
-                pushovertxt = '{0}\n{1}'.format(pushovertxt, createTaskListOverdue(mycon, 'work'))
-                # pushover limits messages sizes to 512 characters
-                if len(pushovertxt) > 512:
-                        pushovertxt = pushovertxt[:512]
-                sendPushover(pushovertxt, configfile)
+            pushovertxt = createTaskListHigh(mycon)
+            pushovertxt = '{0}\n{1}'.format(pushovertxt, createTaskListOverdue(mycon))
+            # pushover limits messages sizes to 512 characters
+            if len(pushovertxt) > 512:
+                pushovertxt = pushovertxt[:512]
+            sendPushover(pushovertxt, configfile)
+
     elif modus == "review":
-        reviewgroup = []
-        if sett.reviewhome:
-            reviewgroup.append('home')
-        if sett.reviewwork:
-            reviewgroup.append('work')
-        for group in reviewgroup:
-            reviewfile = '{0}/Review_{1}_{2}'.format(sett.reviewpath, group, TODAY)
-            reviewtext = '# Review\n\n'
-            reviewtext = '{0}\n{1}'.format(reviewtext, createTaskListHigh(mycon, group))
-            reviewtext = '{0}\n{1}'.format(reviewtext, createTaskListOverdue(mycon, group))
-            if sett.reviewagenda:
-                agendalist = createUniqueList(mycon, 'agenda', group)
-                if len(agendalist) > 0:
-                    agendatasks = createTaskList(mycon, 'agenda', 'Agenda', agendalist, group)
-                    reviewtext = '{0}\n{1}'.format(reviewtext, agendatasks)
-            if sett.reviewwaiting:
-                waitinglist = createUniqueList(mycon, 'waiting', group)
-                if len(waitinglist) > 0:
-                    waitingtasks = createTaskList(mycon, 'waiting',
-                                              'Waiting For', waitinglist, group)
-                    reviewtext = '{0}\n{1}'.format(reviewtext, waitingtasks)
-            if sett.reviewcustomers:
-                customerlist = createUniqueList(mycon, 'customer', group)
-                if len(customerlist) > 0:
-                    customertasks = createTaskList(mycon, 'customer',
-                                               'Customers', customerlist, group)
-                    reviewtext = '{0}\n{1}'.format(reviewtext, customertasks)
-            if sett.reviewprojects:
-                projectlist = createUniqueList(mycon, 'project', group)
-                if len(projectlist) > 0:
-                    projecttasks = createTaskList(mycon, 'project', 'Projects', projectlist, group)
-                    reviewtext = '{0}\n{1}'.format(reviewtext, projecttasks)
-            if sett.reviewmaybe:
-                maybetxt = ''
-                (maybehometxt, maybeworktxt) = createTaskListMaybe('{0}maybe.txt'.format(inputfile[:-8]))
-                if group == 'home':
-                    maybetxt = maybehometxt
-                elif group == 'work':
-                    maybetxt = maybeworktxt
-                reviewtext = '{0}\n{1}'.format(reviewtext, maybetxt)
+        reviewfile = '{0}/Review_{2}'.format(sett.reviewpath, TODAY)
+        reviewtext = '# Review\n\n'
+        reviewtext = '{0}\n{1}'.format(reviewtext, createTaskListHigh(mycon))
+        reviewtext = '{0}\n{1}'.format(reviewtext, createTaskListOverdue(mycon))
+        if sett.reviewagenda:
+            agendalist = createUniqueList(mycon, 'agenda')
+            if len(agendalist) > 0:
+                agendatasks = createTaskList(mycon, 'agenda', 'Agenda', agendalist)
+                reviewtext = '{0}\n{1}'.format(reviewtext, agendatasks)
+        if sett.reviewwaiting:
+            waitinglist = createUniqueList(mycon, 'waiting')
+            if len(waitinglist) > 0:
+                waitingtasks = createTaskList(mycon, 'waiting',
+                                          'Waiting For', waitinglist)
+                reviewtext = '{0}\n{1}'.format(reviewtext, waitingtasks)
+        if sett.reviewcustomers:
+            customerlist = createUniqueList(mycon, 'customer')
+            if len(customerlist) > 0:
+                customertasks = createTaskList(mycon, 'customer',
+                                           'Customers', customerlist)
+                reviewtext = '{0}\n{1}'.format(reviewtext, customertasks)
+        if sett.reviewprojects:
+            projectlist = createProjectList(mycon)
+            #if len(projectlist) > 0:
+                # ToDo: das muss über die neue Funktion gemacht werden
+                #projecttasks = createTaskList(mycon, 'project', 'Projects', projectlist)
+                #reviewtext = '{0}\n{1}'.format(reviewtext, projecttasks)
+        if sett.reviewmaybe:
+            maybetxt = ''
+            maybetxt = createTaskListMaybe('{0}maybe.txt'.format(inputfile[:-8]))
+            reviewtext = '{0}\n{1}'.format(reviewtext, maybetxt)
 
-            html = markdown2html(reviewtext)
+        html = markdown2html(reviewtext)
 
-            if sett.reviewoutputmd:
-                myFile(reviewtext, '{0}.md'.format(reviewfile), 'wb')
-            if sett.reviewoutputhtml:
-                myFile(html, '{0}.html'.format(reviewfile), 'wb')
-            if sett.reviewoutputpdf:
-                html2pdf(html, '{0}.pdf'.format(reviewfile))
+        if sett.reviewoutputmd:
+            myFile(reviewtext, '{0}.md'.format(reviewfile), 'wb')
+        if sett.reviewoutputhtml:
+            myFile(html, '{0}.html'.format(reviewfile), 'wb')
+        if sett.reviewoutputpdf:
+            html2pdf(html, '{0}.pdf'.format(reviewfile))
     else:
         print("modus error")
         sys.exit()
