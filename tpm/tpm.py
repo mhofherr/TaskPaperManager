@@ -38,6 +38,7 @@ import markdown
 import logging
 import getopt
 import shutil
+import os
 import sys
 import re
 import urllib
@@ -353,9 +354,7 @@ def parseInputTask(line, myproject, con, configfile):
         else:
             starttag = None
         if '@repeat' in line:
-            if '@prio' not in line or '@start' not in line or '@repeat' not in line or not\
-                        (('@work' not in line and '@home' in line) or (('@work' in line and
-                        '@home' not in line))):
+            if '@prio' not in line or '@start' not in line or '@repeat' not in line or '@project' not in line:
                 project = 'Error'
         # remove multiple spaces, not the leading tabs
         line = re.sub(' +', ' ', line)
@@ -641,8 +640,9 @@ def printDebug(con):
     projectlist = createProjectList(con)
     mytxt = ''
     for project in projectlist:
-        mytxt = '{0}\n{1}:\n'.format(mytxt, project)
-        mytxt = '{0}{1}'.format(mytxt, printGroup(con, project))
+        if project != 'INBOX' and project != 'Repeat' and project != 'Maybe' and project != 'Archive':
+            mytxt = '{0}\n{1}:\n'.format(mytxt, project)
+            mytxt = '{0}{1}'.format(mytxt, printGroup(con, project))
     mytxt = '{0}\nRepeat:\n'.format(mytxt)
     mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'Repeat'))
     mytxt = '{0}\nINBOX:\n'.format(mytxt)
@@ -657,16 +657,15 @@ def createOutFile(con):
     :param con: the database connection
     :returns: the text for the new taskpaper file, archive file and maybe file
     """
-    # ToDo: wie oben bei Debug
 
-    mytxt = 'work:\n'
-    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'work'))
-    mytxt = '{0}\nhome:\n'.format(mytxt)
-    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'home'))
+    projectlist = createProjectList(con)
+    mytxt = ''
+    for project in projectlist:
+        if project != 'INBOX' and project != 'Repeat' and project != 'Maybe' and project != 'Archive':
+            mytxt = '{0}\n{1}:\n'.format(mytxt, project)
+            mytxt = '{0}{1}'.format(mytxt, printGroup(con, project))
     mytxt = '{0}\nRepeat:\n'.format(mytxt)
     mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'Repeat'))
-    mytxt = '{0}\nError:\n'.format(mytxt)
-    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'Error'))
     mytxt = '{0}\nINBOX:\n'.format(mytxt)
     mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'INBOX'))
 
@@ -1025,10 +1024,13 @@ def main():
         else:
             (mytxt, mytxtdone, mytxtmaybe) = createOutFile(mycon)
             if backup:
-                shutil.move(inputfile, '{0}backup/todo_{1}.txt'.format(inputfile[:-8], TODAY))
+                shutil.move(inputfile, '{0}/backup/{1}_{2}.txt'.format(os.path.dirname(os.path.abspath(inputfile)),
+                    os.path.splitext(os.path.basename(inputfile))[0], TODAY))
             myFile(mytxt, inputfile, 'w')
-            myFile(mytxtdone, '{0}archive.txt'.format(inputfile[:-8]), 'a')
-            myFile(mytxtmaybe, '{0}maybe.txt'.format(inputfile[:-8]), 'a')
+            myFile(mytxtdone, '{0}/{1}_archive.txt'.format(os.path.dirname(os.path.abspath(inputfile)),
+                os.path.splitext(os.path.basename(inputfile))[0]), 'a')
+            myFile(mytxtmaybe, '{0}/{1}_maybe.txt'.format(os.path.dirname(os.path.abspath(inputfile)),
+                os.path.splitext(os.path.basename(inputfile))[0]), 'a')
         if sett.sendmail:
             source = sett.sourceemail
             dest = sett.destemail

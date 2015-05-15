@@ -83,12 +83,6 @@ Future features
    html emails)
 -  provide a pypi package
 
-Current limitations
--------------------
-
--  Fixed set of TaskPaper projects (the lines with the colon); see
-   ``Projects`` below for details
-
 Configuration
 -------------
 
@@ -104,29 +98,22 @@ The variable parameters are configured via a separate config file
 
     [mail]
     sendmail: True
-    sendmailhome: True
-    sendmailwork: False
     smtpserver: <FQDN of your smtp server>
     smtpport: <listening port of your smtp server>
     smtpuser: <your user on the server>
     smtppassword: <your password>
     sourceemail: <sender mail address>
-    destworkemail: <receiver mail address; work>
-    desthomeemail: <receiver mail address; home>
+    destemail: <receiver mail address>
     encryptmail: True
     gnupghome: <Path to your home>/.gnupg
     targetfingerprint: <Fingerprint of the gpg key of the email receiver>
 
     [pushover]
     pushover: True
-    pushoverhome: True
-    pushoverwork: False
     pushovertoken: <application token>
     pushoveruser: <user string>
 
     [review]
-    reviewwork: True
-    reviewhome: True
     outputpdf: True
     outputhtml: True
     outputmd: True
@@ -151,28 +138,21 @@ Parameter Explanations
 -  **sendmail**: Do you want to get a daily overview for your tasks by
    mail? If set to ´False\`, the other parameters in section [mail] can
    be empty.
--  **sendmailhome**: For your home tasks?
--  **sendmailwork**: For your works tasks?
 -  **smtpserver**: The FQDN of your smtp server
 -  **smtpport**: The listening port of your smtp server
 -  **smtpuser**: Username
 -  **smtppassword**: Password
 -  **sourceemail**: The sender mail address
--  **destworkemail**: The mail address for the work email
--  **desthomeemail**: The mail address for the home email
+-  **destemail**: The destination mail address
 -  **encryptmail**: Do you want to encrypt your email? Requires a
    working gpg-setup
 -  **gnupghome**: The path to your .gnupg directory
 -  **targetfingerprint**: the fingerprint for the recipient key
 -  **pushover**: Do you want to get a daily overview for your tasks by
-   mail? If set to ´False\`, the other parameters in section [mail] can
-   be empty.
--  **pushoverhome**: For your home tasks?
--  **pushoverwork**: For your works tasks?
+   mail? If set to ´False\`, the other parameters in section [Pushover]
+   can be empty.
 -  **pushovertoken**: Your application token for pushover
 -  **pushoveruser**: Your user token for pushover
--  **reviewwork**: Review mode only: include work tasks?
--  **reviewhome**: Review mode only: include home tasks?
 -  **outputpdf**: Create the review in PDF?
 -  **outputhtml**: Create the review in HTML?
 -  **outputmd**: Create the review in Markdown text?
@@ -193,22 +173,17 @@ The following tags are actively used in TPM:
 -  @due(): the due day; same format as above
 -  @prio(): high, medium or low; my used based in the MYN methodology of
    Michael Linenberger
--  @done(): task is done, with date of date finished
--  ; will be moved to the file "archive.txt" in the same folder
--  @customer(): the task is associated with a customer
+-  @done(): task is done, with date of date finished; will be moved to
+   the file "archive.txt" in the same folder
 -  @maybe: will be moved to a separate list named "maybe.txt" in the
    same folder
--  @project(): the task is associated with a project name or project
-   number
+-  @project(): only for repeating tasks, to instantiate the new task in
+   the correct project
 -  @waiting(): waiting for a specific person to complete the task
 -  @agenda(): task to discuss with a specific person
 -  @repeat(): repeating task; a special group of tasks which will be
    instantiated as new tasks after a certain interval (see details
    below)
--  @home: only used in @repeat tasks; will instantiate the new task in
-   the *home* section
--  @work: only used in @repeat tasks; will instantiate the new task in
-   the *work* section
 -  @note: show that the task has notes added (additional lines);
    necessary since TaskPaper does not show notes when filtering for tags
 -  @SOC: Significant Outcome (see MYN from Michael Linenberger for
@@ -226,9 +201,10 @@ Validity of tags
 TPM performs some base checks regarding the validity of tags. The rules
 are:
 
--  tasks in 'work' and 'home': at least require '@prio' and 'start'
+-  tasks in projects (anything with a colon at the end): at least
+   require '@prio' and '@start'
 -  tasks in 'Repeat': at least require '@prio', '@start', '@repeat' and
-   either '@work' or '@home'
+   '@project'
 
 If a task does not fulfill these requirements it is sorted in project
 'Error'.
@@ -251,11 +227,12 @@ be in a dedicated taskpaper group called "Repeat:".
 Projects
 --------
 
-TaskPaper treats all lines ending with a colon (:) as projects. I use
-these TaskPaper "projects" only as main sections in my TaskPaper file.
-My actual projects are grouped by the tag *@project()*. See "The
-TaskPaper file" below for an overview about required sections in the
-TaskPaper file.
+TaskPaper treats all lines ending with a colon (:) as projects. TPM uses
+two special projects:
+
+-  **Inbox**: Is always at the bottom of the file, which helps to add
+   tasks on iOS with Drafts and the Dropbox-append action
+-  **Repeat**: For repeating tasks
 
 The TaskPaper file
 ------------------
@@ -265,18 +242,18 @@ TaskPaper file sample for TPM looks as follows:
 
 ::
 
-    work:
+    <Project 1>:
         - task 1 @prio(high) @start(2014-05-24) @due(2014-06-30)
-        - task 2 @prio(medium) @start(2014-05-13) @project(XYZ) @customer(RTZ)
+        - task 2 @prio(medium) @start(2014-05-13)
         - task 3 @prio(low) @start(2014-04-15) @waiting(Mr. X)
 
-    home:
+    <Project 2>:
         - Task 4 @prio(high) @start(2014-05-17) @agenda(Mr. X)
 
     Repeat:
-        - repeat task 1 @prio(high) @repeat(2d) @work @start(2014-05-16)
-        - repeat task 2 @prio(medium) @repeat(3w) @home @start(2014-05-16)
-        - repeat task 3 @prio(high) @repeat(6m) @work @start(2014-05-16)
+        - repeat task 1 @prio(high) @repeat(2d) @project(Project 1) @start(2014-05-16)
+        - repeat task 2 @prio(medium) @repeat(3w) @project(Project 2) @start(2014-05-16)
+        - repeat task 3 @prio(high) @repeat(6m) @project(Project 1) @start(2014-05-16)
 
     Error:
 
@@ -284,19 +261,18 @@ TaskPaper file sample for TPM looks as follows:
 
 Tasks flagged as *@maybe* will be copied to a file named *maybe.txt* in
 the same directory as the TaskPaper file. Tasks flagged as *@done* will
-be copied to a file named *archive.txt* (same directory). Each run of
-the the script will make a copy of the existing TaskPaper file to the
-subdirectory *backup* before making any modifications. The files
-maybe.txt and archive.txt and the backup-directory must exist before
-running the script.
+be copied to a file named *archive.txt* (same directory). Optionally
+(with -b on the command line) a backup of the current tasklist will be
+made to the backup-directory (named "backup" in the local directory of
+the task file). The backup-directory must exist before running the
+script.
 
 Regular script starts
 ---------------------
 
 TPM is intended to be run once every 24 hours (e.g. by using cron). I
-run it on my server on my server once every day at 05:00 am in the
-morning, where my TaskPaper file is available on a mounted dropbox
-folder.
+run it on my server once every day at 05:00 am in the morning, where my
+TaskPaper file is available on a mounted dropbox folder.
 
 Sending email
 -------------
@@ -313,7 +289,8 @@ config file and enable the sending of pushover messages by setting
 "pushover: True". Pushover messages are limited to a maximum of 512
 characters, so the scripts cuts of anything beyond. Please mind:
 Pushover allows a maximum of 7500 messages per application token per
-month. The script provides no limiting for outgoing messages.
+month. The script provides no limiting for the number of outgoing
+messages.
 
 TaskPaper Theme
 ---------------
@@ -347,6 +324,19 @@ FAQ
 
 Changelog
 ---------
+
+Version 1.5.0
+~~~~~~~~~~~~~
+
+-  changed the schema for the task file; up to version 1.4 the idea was
+   to use a single task file, with fixed projects for home and work
+   usage. Starting with version 1.5, TPM supports arbitrary project
+   names in taskpaper notation (a line with a colon at the end is a
+   project). Projects are no longer identified by the "@project" tag.
+   This makes daily usage much easier. I now use different files for
+   home and work.
+-  Fixed some wrong assumptions regarding names for backup , archive and
+   maybe-files
 
 Version 1.4.0
 ~~~~~~~~~~~~~

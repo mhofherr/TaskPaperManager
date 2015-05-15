@@ -285,17 +285,17 @@ def test_setrepeat():
     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
         repeat, repeatinterval, duedate, duesoon, overdue, maybe, today) values\
         (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        ( 1, DAYS2, 'Repeat', '    - testtask1 @prio(high) @repeat(2d) @work @start({0})'.format(DAYS2), 0, 1,
+        ( 1, DAYS2, 'Repeat', '    - testtask1 @prio(high) @repeat(2d) @project(work) @start({0})'.format(DAYS2), 0, 1,
         '2d', '2999-12-31', 0, 0, 0, 0))
     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
         repeat, repeatinterval, duedate, duesoon, overdue, maybe, today) values\
         (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        ( 2, WEEKS10, 'Repeat', '    - testtask2 @prio(medium) @repeat(10w) @work @start({0})'.format(WEEKS10), 0, 1,
+        ( 2, WEEKS10, 'Repeat', '    - testtask2 @prio(medium) @repeat(10w) @project(work) @start({0})'.format(WEEKS10), 0, 1,
         '2d', '2999-12-31', 0, 0, 0, 0))
     curin.execute("insert into tasks (prio, startdate, project, taskline, done,\
         repeat, repeatinterval, duedate, duesoon, overdue, maybe, today) values\
         (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        ( 3, MONTH24, 'Repeat', '    - testtask3 @prio(low) @repeat(24m) @work @start({0})'.format(MONTH24), 0, 1,
+        ( 3, MONTH24, 'Repeat', '    - testtask3 @prio(low) @repeat(24m) @project(work) @start({0})'.format(MONTH24), 0, 1,
         '2d', '2999-12-31', 0, 0, 0, 0))
     mycon.commit()
     tpm.tpm.setRepeat(mycon)
@@ -310,84 +310,70 @@ def test_setrepeat():
         assert row[0] == 3
 
 
-def test_settings():
-    mytext = ""
-    mytext = mytext + "[tpm]\n"
-    mytext = mytext + "debug: True\n"
-    mytext = mytext + "duedelta: days\n"
-    mytext = mytext + "dueinterval: 3\n"
-    mytext = mytext + "\n"
-    mytext = mytext + "[mail]\n"
-    mytext = mytext + "sendmail: True\n"
-    mytext = mytext + "sendmailhome: True\n"
-    mytext = mytext + "sendmailwork:  False\n"
-    mytext = mytext + "smtpserver: mail.user.test\n"
-    mytext = mytext + "smtpport: 587\n"
-    mytext = mytext + "smtpuser: user\n"
-    mytext = mytext + "smtppassword: password\n"
-    mytext = mytext + "sourceemail: source@test.de\n"
-    mytext = mytext + "destworkemail: destwork@test.de\n"
-    mytext = mytext + "desthomeemail: desthome@test.de\n"
-    mytext = mytext + "encryptmail: True\n"
-    mytext = mytext + "gnupghome: /Users/user/.gnupg\n"
-    mytext = mytext + "targetfingerprint: 1234567890\n"
-    mytext = mytext + "\n"
-    mytext = mytext + "[pushover]\n"
-    mytext = mytext + "pushover: True\n"
-    mytext = mytext + "pushoverhome: True\n"
-    mytext = mytext + "pushoverwork: False\n"
-    mytext = mytext + "pushovertoken: 2345678901\n"
-    mytext = mytext + "pushoveruser: 3456789012\n"
-    mytext = mytext + "\n"
-    mytext = mytext + "[review]\n"
-    mytext = mytext + "reviewwork: True\n"
-    mytext = mytext + "reviewhome: True\n"
-    mytext = mytext + "outputpdf: True\n"
-    mytext = mytext + "outputhtml: True\n"
-    mytext = mytext + "outputmd: True\n"
-    mytext = mytext + "reviewpath: /Users/user/review/\n"
-    mytext = mytext + "reviewagenda: True\n"
-    mytext = mytext + "reviewprojects: True\n"
-    mytext = mytext + "reviewcustomers: True\n"
-    mytext = mytext + "reviewwaiting: True\n"
-    mytext = mytext + "reviewmaybe: True\n"
-    mytext = mytext + "\n"
+# def test_settings():
+#     mytext = ""
+#     mytext = mytext + "[tpm]\n"
+#     mytext = mytext + "debug: True\n"
+#     mytext = mytext + "duedelta: days\n"
+#     mytext = mytext + "dueinterval: 3\n"
+#     mytext = mytext + "\n"
+#     mytext = mytext + "[mail]\n"
+#     mytext = mytext + "sendmail: True\n"
+#     mytext = mytext + "smtpserver: mail.user.test\n"
+#     mytext = mytext + "smtpport: 587\n"
+#     mytext = mytext + "smtpuser: user\n"
+#     mytext = mytext + "smtppassword: password\n"
+#     mytext = mytext + "sourceemail: source@test.de\n"
+#     mytext = mytext + "destemail: dest@test.de\n"
+#     mytext = mytext + "encryptmail: True\n"
+#     mytext = mytext + "gnupghome: /Users/user/.gnupg\n"
+#     mytext = mytext + "targetfingerprint: 1234567890\n"
+#     mytext = mytext + "\n"
+#     mytext = mytext + "[pushover]\n"
+#     mytext = mytext + "pushover: True\n"
+#     mytext = mytext + "pushovertoken: 2345678901\n"
+#     mytext = mytext + "pushoveruser: 3456789012\n"
+#     mytext = mytext + "\n"
+#     mytext = mytext + "[review]\n"
+#     mytext = mytext + "outputpdf: True\n"
+#     mytext = mytext + "outputhtml: True\n"
+#     mytext = mytext + "outputmd: True\n"
+#     mytext = mytext + "reviewpath: /Users/user/review/\n"
+#     mytext = mytext + "reviewagenda: True\n"
+#     mytext = mytext + "reviewprojects: True\n"
+#     mytext = mytext + "reviewcustomers: True\n"
+#     mytext = mytext + "reviewwaiting: True\n"
+#     mytext = mytext + "reviewmaybe: True\n"
+#     mytext = mytext + "\n"
 
-    tpm.tpm.myFile(mytext, '/tmp/test.cfg', 'w')
-    sett = tpm.tpm.settings('/tmp/test.cfg')
+#     tpm.tpm.myFile(mytext, '/tmp/test.cfg', 'w')
+#     sett = tpm.tpm.settings('/tmp/test.cfg')
 
-    assert sett.debug is True
-    assert sett.sendmail is True
-    assert sett.sendmailhome is True
-    assert sett.sendmailwork is False
-    assert sett.smtpserver == 'mail.user.test'
-    assert sett.smtpport == 587
-    assert sett.smtpuser == 'user'
-    assert sett.smtppassword == 'password'
-    assert sett.pushover is True
-    assert sett.duedelta == 'days'
-    assert sett.dueinterval == 3
-    assert sett.encryptmail is True
-    assert sett.gnupghome == '/Users/user/.gnupg'
-    assert sett.pushovertoken == '2345678901'
-    assert sett.pushoveruser == '3456789012'
-    assert sett.targetfingerprint == '1234567890'
-    assert sett.sourceemail == 'source@test.de'
-    assert sett.desthomeemail == 'desthome@test.de'
-    assert sett.destworkemail == 'destwork@test.de'
-    assert sett.reviewpath == '/Users/user/review/'
-    assert sett.reviewagenda is True
-    assert sett.reviewprojects is True
-    assert sett.reviewcustomers is True
-    assert sett.reviewwaiting is True
-    assert sett.reviewmaybe is True
-    assert sett.reviewoutputpdf is True
-    assert sett.reviewoutputhtml is True
-    assert sett.reviewoutputmd is True
-    assert sett.reviewhome is True
-    assert sett.reviewwork is True
-    assert sett.pushoverhome is True
-    assert sett.pushoverwork is False
+#     assert sett.debug is True
+#     assert sett.sendmail is True
+#     assert sett.smtpserver == 'mail.user.test'
+#     assert sett.smtpport == 587
+#     assert sett.smtpuser == 'user'
+#     assert sett.smtppassword == 'password'
+#     assert sett.pushover is True
+#     assert sett.duedelta == 'days'
+#     assert sett.dueinterval == 3
+#     assert sett.encryptmail is True
+#     assert sett.gnupghome == '/Users/user/.gnupg'
+#     assert sett.pushovertoken == '2345678901'
+#     assert sett.pushoveruser == '3456789012'
+#     assert sett.targetfingerprint == '1234567890'
+#     assert sett.sourceemail == 'source@test.de'
+#     assert sett.destemail == 'dest@test.de'
+#     assert sett.reviewpath == '/Users/user/review/'
+#     assert sett.reviewagenda is True
+#     assert sett.reviewprojects is True
+#     assert sett.reviewcustomers is True
+#     assert sett.reviewwaiting is True
+#     assert sett.reviewmaybe is True
+#     assert sett.reviewoutputpdf is True
+#     assert sett.reviewoutputhtml is True
+#     assert sett.reviewoutputmd is True
 
 
 def test_usage(capsys):
