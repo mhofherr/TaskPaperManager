@@ -635,40 +635,33 @@ def printDebug(con):
     """writes tasks and notes to stdout; used if debug=True instead of actually writing to output file
 
     :param con: the database connection
+    :returns: the content of the new taskpaper file
     """
 
     projectlist = createProjectList(con)
     mytxt = ''
     for project in projectlist:
-        if project != 'INBOX' and project != 'Repeat' and project != 'Maybe' and project != 'Archive':
+        if project != 'INBOX' and project != 'Repeat' and project != 'Maybe' and project != 'Archive' and project != 'Error':
             mytxt = '{0}\n{1}:\n'.format(mytxt, project)
             mytxt = '{0}{1}'.format(mytxt, printGroup(con, project))
     mytxt = '{0}\nRepeat:\n'.format(mytxt)
     mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'Repeat'))
+    mytxt = '{0}Error:\n'.format(mytxt)
+    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'Error'))
     mytxt = '{0}\nINBOX:\n'.format(mytxt)
     mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'INBOX'))
-    mytxt = mytxt.encode("utf-8")
-    print(mytxt)
+    #mytxt = mytxt.encode("utf-8")
+    return(mytxt)
 
 
 def createOutFile(con):
     """prepare the text for the different output files
 
     :param con: the database connection
-    :returns: the text for the new taskpaper file, archive file and maybe file
+    :returns: the content of the new taskpaper file, archive file and maybe file
     """
 
-    projectlist = createProjectList(con)
-    mytxt = ''
-    for project in projectlist:
-        if project != 'INBOX' and project != 'Repeat' and project != 'Maybe' and project != 'Archive':
-            mytxt = '{0}\n{1}:\n'.format(mytxt, project)
-            mytxt = '{0}{1}'.format(mytxt, printGroup(con, project))
-    mytxt = '{0}\nRepeat:\n'.format(mytxt)
-    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'Repeat'))
-    mytxt = '{0}\nINBOX:\n'.format(mytxt)
-    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'INBOX'))
-
+    mytxt = printDebug(con)
     mytxtdone = printGroup(con, 'Archive')
     mytxtmaybe = printGroup(con, 'Maybe')
 
@@ -697,6 +690,30 @@ def createTaskListMaybe(filename):
     return mytxt
 
 
+def createTaskListOverdue(con):
+    """prepares a list of tasks with @overdue
+
+    :param con: the database connection
+    :returns: the result tasks as text string
+    """
+
+    try:
+        mytxt = ''
+        cursel = con.cursor()
+        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
+            where overdue = 1 and project != 'Repeat' and project != 'Error' and\
+            done = 0 ORDER BY prio asc, startdate desc ")
+        for row in cursel:
+            taskstring = removeTaskParts(row[0], '@start @prio')
+            mytxt = '{0}{1}\n'.format(mytxt, taskstring)
+        if mytxt == '':
+            return mytxt
+        else:
+            return '{0}{1}'.format('## Open tasks - overdue:\n', mytxt)
+    except sqlite3.Error as e:
+        sys.exit("createTaskListOverdue - An error occurred: {0}".format(e.args[0]))
+
+
 def createTaskListHigh(con):
     """prepares a list of tasks with @prio(high)
 
@@ -708,7 +725,7 @@ def createTaskListHigh(con):
         mytxt = ''
         cursel = con.cursor()
         cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
-            where prio = 1 and \
+            where prio = 1 and project != 'Repeat' and project != 'Error' and\
             startdate <= date( julianday(date('now'))) and done = 0 ORDER BY prio asc,\
             startdate desc ")
         for row in cursel:
@@ -722,28 +739,31 @@ def createTaskListHigh(con):
         sys.exit("createTaskListHigh - An error occurred: {0}".format(e.args[0]))
 
 
-def createTaskListOverdue(con):
-    """prepares a list of tasks with @overdue
+def createTaskList(con, element, headline, mylist):
+    """create a list of tasks for specified content
 
     :param con: the database connection
-    :returns: the result tasks as text string
+    :param element: the tag to use
+    :param headline: the headline to use for the output
+    :param mylist: a list of unique names
+    :returns: text string with task list
     """
 
-    try:
-        mytxt = ''
-        cursel = con.cursor()
-        cursel.execute("SELECT taskline, project, prio, startdate FROM tasks\
-            where overdue = 1 and \
-            done = 0 ORDER BY prio asc, startdate desc ")
-        for row in cursel:
-            taskstring = removeTaskParts(row[0], '@start @prio')
-            mytxt = '{0}{1}\n'.format(mytxt, taskstring)
-        if mytxt == '':
-            return mytxt
-        else:
-            return '{0}{1}'.format('## Open tasks - overdue:\n', mytxt)
-    except sqlite3.Error as e:
-        sys.exit("createTaskListOverdue - An error occurred: {0}".format(e.args[0]))
+    mytasks = '\n\n## {0}\n'.format(headline)
+    for listelement in mylist:
+        mytasks = '{0}\n\n### {1}\n'.format(mytasks, listelement)
+        try:
+            cursel = con.cursor()
+            cursel.execute("SELECT taskline, project FROM tasks where project != 'Repeat' and project != 'Error'\
+                ORDER BY prio asc, startdate desc ")
+            for row in cursel:
+                if '@{0}'.format(element) in row[0]:
+                    if re.search(r'\@' + element + '\((.*?)\)', row[0]).group(1) == listelement:
+                        taskstring = removeTaskParts(row[0], '@start @prio @project @customer @waiting')
+                        mytasks = '{0}\n{1}'.format(mytasks, taskstring)
+        except sqlite3.Error as e:
+            sys.exit("createTaskList - An error occurred: {0}".format(e.args[0]))
+    return mytasks
 
 
 def markdown2html(mytext):
@@ -782,7 +802,8 @@ def markdown2html(mytext):
     </html>
     """
 
-    extensions = ['extra', 'smartypants']
+    #extensions = ['extra', 'smartypants']
+    extensions = ['extra']
     html = markdown.markdown(mytext, extensions=extensions, output_format='html5')
     doc = jinja2.Template(TEMPLATE).render(content=html)
     return doc
@@ -876,6 +897,8 @@ def createMail(con, configfile):
     :param configfile: the tpm config file
     """
 
+    # ToDo: Funktion statt direkten select verwenden
+
     sett = settings(configfile)
     if sett.sendmail:
         try:
@@ -886,7 +909,7 @@ def createMail(con, configfile):
 
             # Overdue
             cursel.execute("SELECT taskline, project, prio, startdate, duedate FROM tasks\
-                where overdue = 1 and done = 0 ORDER BY prio asc,\
+                where overdue = 1 and done = 0 and project != 'Repeat' and project != 'Error' ORDER BY prio asc,\
                 startdate desc ")
             for row in cursel:
                 taskstring = removeTaskParts(row[0], '@')
@@ -896,7 +919,7 @@ def createMail(con, configfile):
 
             # Due soon
             cursel.execute("SELECT taskline, project, prio, startdate, duedate FROM tasks\
-                where duesoon = 1 and done = 0 ORDER BY prio asc,\
+                where duesoon = 1 and project != 'Repeat' and project != 'Error' and done = 0 ORDER BY prio asc,\
                 startdate desc ")
             for row in cursel:
                 taskstring = removeTaskParts(row[0], '@')
@@ -907,7 +930,7 @@ def createMail(con, configfile):
 
             # All other high prio tasks
             cursel.execute("SELECT taskline, project, prio, startdate, duedate FROM tasks\
-                where prio = 1 and duesoon = 0 and overdue = 0 and \
+                where prio = 1 and duesoon = 0 and overdue = 0 and project != 'Repeat' and project != 'Error' and\
                 startdate <= date( julianday(date('now'))) and done = 0 ORDER BY prio asc,\
                 startdate desc ")
             for row in cursel:
@@ -962,33 +985,6 @@ def createProjectList(con):
     return mylist
 
 
-def createTaskList(con, element, headline, mylist):
-    """create a list of tasks for specified content
-
-    :param con: the database connection
-    :param element: the tag to use
-    :param headline: the headline to use for the output
-    :param mylist: a list of unique names
-    :returns: text string with task list
-    """
-
-    mytasks = '\n\n## {0}\n'.format(headline)
-    for listelement in mylist:
-        mytasks = '{0}\n\n### {1}\n'.format(mytasks, listelement)
-        try:
-            cursel = con.cursor()
-            cursel.execute("SELECT taskline, project FROM tasks\
-                ORDER BY prio asc, startdate desc ")
-            for row in cursel:
-                if '@{0}'.format(element) in row[0]:
-                    if re.search(r'\@' + element + '\((.*?)\)', row[0]).group(1) == listelement:
-                        taskstring = removeTaskParts(row[0], '@start @prio @project @customer @waiting')
-                        mytasks = '{0}\n{1}'.format(mytasks, taskstring)
-        except sqlite3.Error as e:
-            sys.exit("createTaskList - An error occurred: {0}".format(e.args[0]))
-    return mytasks
-
-
 def myFile(mytext, filename, mode):
     """helper function for file operations; append and write
 
@@ -1020,7 +1016,9 @@ def main():
         setNoteTag(mycon)
         setRepeat(mycon)
         if sett.debug:
-            printDebug(mycon)
+            mytxt = printDebug(mycon)
+            mytxt = mytxt.encode("utf-8")
+            print(mytxt)
         else:
             (mytxt, mytxtdone, mytxtmaybe) = createOutFile(mycon)
             if backup:
@@ -1042,9 +1040,9 @@ def main():
         if sett.pushover:
             pushovertxt = createTaskListHigh(mycon)
             pushovertxt = '{0}\n{1}'.format(pushovertxt, createTaskListOverdue(mycon))
-            # pushover limits messages sizes to 512 characters
-            if len(pushovertxt) > 512:
-                pushovertxt = pushovertxt[:512]
+            # pushover limits messages sizes to 1024 characters
+            if len(pushovertxt) > 1024:
+                pushovertxt = pushovertxt[:1024]
             sendPushover(pushovertxt, configfile)
 
     elif modus == "review":
