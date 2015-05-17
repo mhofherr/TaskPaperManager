@@ -1007,6 +1007,8 @@ def main():
     mycon = initDB()
     sett = settings(configfile)
     parseInput(inputfile, mycon, configfile)
+    maybefile = '{0}/{1}_maybe.txt'.format(os.path.dirname(os.path.abspath(inputfile)),
+                os.path.splitext(os.path.basename(inputfile))[0])
 
     if modus == "daily":
         removeTags(mycon)
@@ -1027,8 +1029,7 @@ def main():
             myFile(mytxt, inputfile, 'w')
             myFile(mytxtdone, '{0}/{1}_archive.txt'.format(os.path.dirname(os.path.abspath(inputfile)),
                 os.path.splitext(os.path.basename(inputfile))[0]), 'a')
-            myFile(mytxtmaybe, '{0}/{1}_maybe.txt'.format(os.path.dirname(os.path.abspath(inputfile)),
-                os.path.splitext(os.path.basename(inputfile))[0]), 'a')
+            myFile(mytxtmaybe, maybefile, 'a')
         if sett.sendmail:
             source = sett.sourceemail
             dest = sett.destemail
@@ -1046,7 +1047,7 @@ def main():
             sendPushover(pushovertxt, configfile)
 
     elif modus == "review":
-        reviewfile = '{0}/Review_{2}'.format(sett.reviewpath, TODAY)
+        reviewfile = '{0}/Review_{1}'.format(sett.reviewpath, TODAY)
         reviewtext = '# Review\n\n'
         reviewtext = '{0}\n{1}'.format(reviewtext, createTaskListHigh(mycon))
         reviewtext = '{0}\n{1}'.format(reviewtext, createTaskListOverdue(mycon))
@@ -1075,7 +1076,7 @@ def main():
                 #reviewtext = '{0}\n{1}'.format(reviewtext, projecttasks)
         if sett.reviewmaybe:
             maybetxt = ''
-            maybetxt = createTaskListMaybe('{0}maybe.txt'.format(inputfile[:-8]))
+            maybetxt = createTaskListMaybe(maybefile)
             reviewtext = '{0}\n{1}'.format(reviewtext, maybetxt)
 
         html = markdown2html(reviewtext)
