@@ -144,7 +144,7 @@ def removeTaskParts(instring, removelist):
     """
 
     outstring = ''
-    cut_string = instring.split(' ')
+    cut_string = instring.split(' ')    
     cut_removelist = removelist.split(' ')
     for i in range(0, len(cut_string)):
         for j in range(0, len(cut_removelist)):
@@ -166,8 +166,6 @@ class settings:
         self.dueinterval = Config.getint('tpm', 'dueinterval')
         self.sendmail = Config.getboolean('mail', 'sendmail')
         if self.sendmail:
-            ####self.sendmailhome = Config.getboolean('mail', 'sendmailhome')
-            ####self.sendmailwork = Config.getboolean('mail', 'sendmailwork')
             self.smtpserver = ConfigSectionMap(Config, 'mail')['smtpserver']
             self.smtpport = Config.getint('mail', 'smtpport')
             self.smtpuser = ConfigSectionMap(Config, 'mail')['smtpuser']
@@ -176,12 +174,10 @@ class settings:
             self.gnupghome = ConfigSectionMap(Config, 'mail')['gnupghome']
             self.targetfingerprint = ConfigSectionMap(Config, 'mail')['targetfingerprint']
             self.sourceemail = ConfigSectionMap(Config, 'mail')['sourceemail']
-            ####self.desthomeemail = ConfigSectionMap(Config, 'mail')['desthomeemail']
-            ####self.destworkemail = ConfigSectionMap(Config, 'mail')['destworkemail']
+
             self.destemail = ConfigSectionMap(Config, 'mail')['destemail']
         else:
-            ####self.sendmailhome = False
-            ####self.sendmailwork = False
+
             self.smtpserver = ''
             self.smtpport = 1
             self.smtpuser = ''
@@ -190,20 +186,16 @@ class settings:
             self.gnupghome = ''
             self.targetfingerprint = ''
             self.sourceemail = ''
-            ####self.desthomeemail = ''
-            ####self.destworkemail = ''
+
             self.destemail = ''
         self.pushover = Config.getboolean('pushover', 'pushover')
         if self.pushover:
             self.pushovertoken = ConfigSectionMap(Config, 'pushover')['pushovertoken']
             self.pushoveruser = ConfigSectionMap(Config, 'pushover')['pushoveruser']
-            ####self.pushoverhome = Config.getboolean('pushover', 'pushoverhome')
-            ####self.pushoverwork = Config.getboolean('pushover', 'pushoverwork')
         else:
             self.pushovertoken = ''
             self.pushoveruser = ''
-            ####self.pushoverhome = False
-            ####self.pushoverwork = False
+
         self.reviewpath = ConfigSectionMap(Config, 'review')['reviewpath']
         self.reviewagenda = Config.getboolean('review', 'reviewagenda')
         self.reviewprojects = Config.getboolean('review', 'reviewprojects')
@@ -213,8 +205,7 @@ class settings:
         self.reviewoutputpdf = Config.getboolean('review', 'outputpdf')
         self.reviewoutputhtml = Config.getboolean('review', 'outputhtml')
         self.reviewoutputmd = Config.getboolean('review', 'outputmd')
-        ####self.reviewhome = Config.getboolean('review', 'reviewhome')
-        ####self.reviewwork = Config.getboolean('review', 'reviewwork')
+
 
 
 def ConfigSectionMap(Config, section):
@@ -568,11 +559,6 @@ def setRepeat(con):
 
             # instantiate anything which is older or equal than today
             if newstartdate <= TODAY:
-                # ToDo - wie wird das jetzt gemapped, wenn die Proojekte anders belegt werden?
-                ####if '@home' in row[2]:
-                ####    projecttag = 'home'
-                ####if '@work' in row[2]:
-                ####    projecttag = 'work'
                 if '@project' in row[2]:
                     projecttag = re.search(r'\@project\((.*?)\)', row[2]).group(1)
                 else:
@@ -580,7 +566,7 @@ def setRepeat(con):
                 # get the relevant information from the task description
                 taskstring = removeTaskParts(row[2], '@repeat @project @start')
                 taskstring = '{0} @start({1})'.format(taskstring, newstartdate)
-
+ 
                 # create new instance of repeat task
                 try:
                     # ! todo: repeatinterval should be NULL, not '-'
