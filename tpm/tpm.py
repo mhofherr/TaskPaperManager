@@ -298,7 +298,10 @@ def parseInputTask(line, myproject, con, configfile):
     today = False
 
     if checkSanity(line) is False:
-        project = 'Error'
+        if '@search' in line:
+            project = 'Search'
+        else:
+            project = 'Error'
         try:
             cur.execute("insert into tasks (project, taskline) values (?, ?)",
                         (project, line.strip('\n')))
@@ -426,9 +429,10 @@ def removeTags(con):
     try:
         cursel = con.cursor()
         curup = con.cursor()
-        cursel.execute("SELECT taskid, taskline FROM tasks where taskline like '%@overdue%'\
+        cursel.execute("SELECT taskid, taskline FROM tasks where (taskline like '%@overdue%'\
             or taskline like '%@duesoon%'\
-            or taskline like '%@today%'")
+            or taskline like '%@today%') and\
+            project != 'Search' and project != 'Repeat'")
         for row in cursel:
                 taskstring = removeTaskParts(row[1], '@overdue @duesoon @today')
                 curup.execute("UPDATE tasks SET taskline=? WHERE taskid=?",
@@ -447,15 +451,15 @@ def setTags(con):
     try:
         cursel = con.cursor()
         curup = con.cursor()
-        cursel.execute("SELECT taskid, taskline FROM tasks where overdue = 1")
+        cursel.execute("SELECT taskid, taskline FROM tasks where overdue = 1 and project != 'Search' and project != 'Repeat'")
         for row in cursel:
             curup.execute("UPDATE tasks SET taskline=? WHERE taskid=?",
                          ('{0} @overdue'.format(row[1]), row[0]))
-        cursel.execute("SELECT taskid, taskline FROM tasks where duesoon = 1")
+        cursel.execute("SELECT taskid, taskline FROM tasks where duesoon = 1 and project != 'Search' and project != 'Repeat'")
         for row in cursel:
             curup.execute("UPDATE tasks SET taskline=? WHERE taskid=?",
                          ('{0} @duesoon'.format(row[1]), row[0]))
-        cursel.execute("SELECT taskid, taskline FROM tasks where today = 1")
+        cursel.execute("SELECT taskid, taskline FROM tasks where today = 1 and project != 'Search' and project != 'Repeat'")
         for row in cursel:
             curup.execute("UPDATE tasks SET taskline=? WHERE taskid=?",
                          ('{0} @today'.format(row[1]), row[0]))
@@ -627,11 +631,13 @@ def printDebug(con):
     projectlist = createProjectList(con)
     mytxt = ''
     for project in projectlist:
-        if project != 'INBOX' and project != 'Repeat' and project != 'Maybe' and project != 'Archive' and project != 'Error':
+        if project != 'INBOX' and project != 'Repeat' and project != 'Maybe' and project != 'Archive' and project != 'Error' and project != 'Search':
             mytxt = '{0}\n{1}:\n'.format(mytxt, project)
             mytxt = '{0}{1}'.format(mytxt, printGroup(con, project))
     mytxt = '{0}\nRepeat:\n'.format(mytxt)
     mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'Repeat'))
+    mytxt = '{0}\nSearch:\n'.format(mytxt)
+    mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'Search'))
     mytxt = '{0}Error:\n'.format(mytxt)
     mytxt = '{0}{1}'.format(mytxt, printGroup(con, 'Error'))
     mytxt = '{0}\nINBOX:\n'.format(mytxt)
