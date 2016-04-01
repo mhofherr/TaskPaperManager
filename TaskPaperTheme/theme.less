@@ -1,0 +1,139 @@
+// Base text
+@font-family: Source Sans Pro;
+@font-size: $USER_FONT_SIZE;
+@text-color: black;
+@background-color: rgb(247, 247, 247);
+@line-height-multiple: 1.1;
+@done-color: rgba(127, 127, 127, 0.52);
+@link-color: #3974cb;
+@waiting-color: #828ccb;
+@due-color: orange;
+@flag-color: red;
+
+// UI
+@tint-color: #ff4b4d;
+@interface-color: @tint-color;
+@selection-color: mix(@tint-color, @background-color, 30%); // rgb(148, 192, 255);
+@invisibles-color: mix(@tint-color, @background-color, 70%); // rgb(67, 119, 211);
+
+editor {
+color: @text-color;
+font-size: @font-size;
+font-family: @font-family;
+background-color: @background-color;
+line-height-multiple: @line-height-multiple;
+
+item-indent: 20px;
+caret-width: 2px;
+caret-color: @tint-color;
+handle-color: @tint-color;
+drop-indicator-color: @tint-color;
+invisibles-color: @invisibles-color;
+selection-background-color: @selection-color;
+guide-line-color: mix(@tint-color, @background-color, 15%);
+message-color: mix(@text-color, @background-color, 50%);
+}
+
+item[data-type="task"] {
+font-style: normal;
+}
+
+item[data-type="project"] {
+font-weight: bold;
+}
+
+item[depth="1"].item[data-type="project"] {
+}
+
+item[data-done] {
+> run[display] {
+text-strikethrough: NSUnderlineStyleSingle;
+text-strikethrough-color: @done-color;
+}
+}
+
+run[link] {
+cursor: pointer;
+color: @link-color;
+}
+
+run[link^="button"] {
+color: @text-color;
+text-expansion: 1;
+}
+
+run[link^="filter"] {
+color: @text-color;
+}
+
+run[tag] {
+font-size: @font-size;
+font-style: normal;
+font-weight: normal;
+color: #A9A9A9;
+//color: #C0C0C0;
+}
+
+item[data-done] {
+color:@done-color;
+}
+
+run[tag=data-done] {
+color:@done-color;
+}
+
+
+run[tag=data-WaitingFor] {
+color:@waiting-color;
+}
+
+run[tag=data-agenda] {
+color:@waiting-color;
+}
+
+run[tag=data-duesoon] {
+color: mix(orange, @done-color, 70%);
+font-weight: bold;
+}
+
+item[data-prio=medium] {
+color: #808080;
+}
+
+item[data-prio=low] {
+color: #A9A9A9;
+}
+
+item[data-today] {
+color: orange;
+}
+
+run[tag=data-today] {
+color: orange;
+}
+
+item[data-prio=high] {
+color: red;
+}
+
+item[data-overdue] {
+color: red;
+font-weight: bold;
+}
+
+run[tag=data-overdue] {
+color: red;
+font-weight: bold;
+}
+
+
+item[data-SOC] {
+color: #800000;
+font-weight: bold;
+}
+
+run[tag=data-SOC] {
+color: mix(#800000, @done-color, 70%);
+font-weight: bold;
+}
+
