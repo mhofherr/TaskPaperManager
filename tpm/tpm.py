@@ -143,8 +143,9 @@ def removeTaskParts(instring, removelist):
     :returns: the new strings minus the removed tags
     """
 
+    # TODO - does currently not work with spaces in elements -> e.g. project-names with spaces
     outstring = ''
-    cut_string = instring.split(' ')    
+    cut_string = instring.split(' ')
     cut_removelist = removelist.split(' ')
     for i in range(0, len(cut_string)):
         for j in range(0, len(cut_removelist)):
@@ -570,7 +571,7 @@ def setRepeat(con):
                 # get the relevant information from the task description
                 taskstring = removeTaskParts(row[2], '@repeat @project @start')
                 taskstring = '{0} @start({1})'.format(taskstring, newstartdate)
- 
+
                 # create new instance of repeat task
                 try:
                     # ! todo: repeatinterval should be NULL, not '-'
